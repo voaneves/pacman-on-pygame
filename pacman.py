@@ -197,7 +197,7 @@ class Snake:
 
     def move(self,
              action,
-             food_pos):
+             food_pos, gold_pos = []):
         """According to orientation, move 1 block. If the head is not positioned
         on food, pop a body part. Else, return without popping.
 
@@ -221,11 +221,17 @@ class Snake:
         self.body.insert(0, list(self.head))
         self.body.pop()
 
-        if self.head == food_pos:
+        if self.head in food_pos:
+            ate_food = True
+            food_pos.remove(self.head)
+
             LOGGER.info('EVENT: FOOD EATEN')
 
-            self.length = len(self.body)
+        if self.head in gold_pos:
             ate_food = True
+            gold_pos.remove(self.head)
+
+            LOGGER.info('EVENT: GOLD EATEN')
 
         return ate_food
 
@@ -825,7 +831,6 @@ class Game:
         """Move the snake to the direction, eat and check collision."""
         self.scored = False
         self.steps += 1
-        self.food_pos = self.generate_food()
         self.current_state = self.state()
 
         if self.relative_pos:
@@ -837,11 +842,9 @@ class Game:
         if not currently_to_wall:
             if self.snake.move(action, self.food_pos):
                 self.scored = True
-                self.food_generator.is_food_on_screen = False
         elif currently_to_wall and not previously_to_wall:
             if self.snake.move(self.snake.previous_action, self.food_pos):
                 self.scored = True
-                self.food_generator.is_food_on_screen = False
 
         if self.player == "HUMAN":
             if self.check_collision():
