@@ -106,10 +106,12 @@ REWARDS = {'MOVE': -0.005,
 # Types of point in the board
 POINT_TYPE = {'EMPTY': 0,
               'WALL': 1,
-              'FOOD': 2,
-              'GOLD': 3,
-              'HEAD': 4,
-              'GHOST': 5}
+              'GHOSTS_WALL': 2,
+              'GHOSTS_AREA': 3,
+              'FOOD': 4,
+              'GOLD': 5,
+              'HEAD': 6,
+              'GHOST': 7}
 
 # Speed levels possible to human players. MEGA HARDCORE starts with MEDIUM and
 # increases with snake size
@@ -239,13 +241,14 @@ class FoodGenerator:
         Flag for existence of food.
     """
     def __init__(self,
-                 body):
+                 current_state):
         """Initialize a food piece and set existence flag."""
-        self.is_food_on_screen = False
-        self.pos = self.generate_food(body)
+        self.food_pos = []
+        self.gold_pos = []
+        self.generate_food(current_state)
 
     def generate_food(self,
-                      body):
+                      current_state):
         """Generate food and verify if it's on a valid place.
 
         Return
@@ -253,21 +256,10 @@ class FoodGenerator:
         pos: tuple of 2 * int
             Position of the food that was generated. It can't be in the body.
         """
-        if not self.is_food_on_screen:
-            while True:
-                food = [int((VAR.board_size - 1) * random.random()),
-                        int((VAR.board_size - 1) * random.random())]
+        empty_cells = np.where(current_state == POINT_TYPE['EMPTY'])
+        self.food_pos = [list(a) for a in zip(empty_cells[0], empty_cells[1])]
 
-                if food in body:
-                    continue
-                else:
-                    self.pos = food
-                    break
-
-            LOGGER.info('EVENT: FOOD APPEARED')
-            self.is_food_on_screen = True
-
-        return self.pos
+        LOGGER.info('EVENT: FOOD GENERATED')
 
 
 class Game:
@@ -328,12 +320,14 @@ class Game:
         """Reset the game environment."""
         self.steps = 0
         self.snake = Snake()
-        self.food_generator = FoodGenerator(self.snake.body)
-        self.food_pos = self.food_generator.pos
         self.scored = False
         self.game_over = False
+        self.current_state = self.state()
+        self.food_generator = FoodGenerator(self.current_state)
+        self.food_pos = self.food_generator.food_pos
+        self.gold_pos = self.food_generator.gold_pos
 
-        return self.state()
+        return self.current_state
 
     def create_window(self):
         """Create a pygame display with board_size * block_size dimension."""
@@ -727,7 +721,7 @@ class Game:
         food_pos: tuple of 2 * int
             Current position of the food.
         """
-        food_pos = self.food_generator.generate_food(self.snake.body)
+        food_pos = self.food_generator.generate_food(self.current_state)
 
         return food_pos
 
@@ -770,8 +764,13 @@ class Game:
         canvas: np.array of size board_size**2
             Return the current state of the game in a matrix.
         """
-        canvas = np.ones((VAR.board_size, VAR.board_size))
-        canvas[1:-1,1:-1] = 0
+        if not hasattr(self, 'map'):
+            map_path = self.resource_path("resources/maps/map1.txt")
+
+            with open(map_path) as map_file:
+                self.map = np.loadtxt(map_file).transpose()
+
+        canvas = np.copy(self.map)
 
         if self.game_over:
             pass
@@ -783,7 +782,11 @@ class Game:
             if self.local_state:
                 canvas = self.eval_local_safety(canvas, body)
 
-            canvas[self.food_pos[0], self.food_pos[1]] = POINT_TYPE['FOOD']
+            if not hasattr(self, 'food_pos'):
+                return canvas
+
+            for food in self.food_pos:
+                canvas[food[0], food[1]] = POINT_TYPE['FOOD']
 
         return canvas
 
