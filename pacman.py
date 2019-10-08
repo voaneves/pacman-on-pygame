@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""snake-on-pygame: A simple and fun snake game, playable by Human and AI.
+"""pacman-on-pygame: A simple and fun pacman game, playable by Human and AI.
 
-This module is the implementation of the snake game on pygame, focusing on speed
+This module is the implementation of the pacman game on pygame, focusing on speed
 and simplicity. It's playable by both humans and AI agents and it uses most of
 pygame's optimizations to deliver a smooth experience in testing/playing.
 
@@ -12,14 +12,14 @@ Usage for human players
     To play as a human, you only need to run this file, given you have the
     needed dependencies.
 
-        $ python snake.py
+        $ python pacman.py
 
 Usage for AI agents
 ----------
     To use with AI agents, you need to integrate the game with the AI agent. An
     example usage is:
 
-        >>> from snake-on-pygame import Game
+        >>> from pacman-on-pygame import Game
         >>> game = Game(player = "ROBOT",
                         board_size = board_size,
                         local_state = local_state,
@@ -36,8 +36,8 @@ Usage for AI agents
         >>> print(game.steps)
         10 # current number of steps in a given episode.
 
-        >>> print(game.snake.length)
-        4 # current length of the snake in a given episode.
+        >>> print(game.pacman.length)
+        4 # current length of the pacman in a given episode.
 
     Possible methods:
 
@@ -67,7 +67,7 @@ from os import environ, path  # To center the game window the best possible
 import random  # Random numbers used for the food
 import logging  # Logging function for movements and errors
 import json # For file handling (leaderboards)
-from itertools import tee  # For the color gradient on snake
+from itertools import tee  # For the color gradient on pacman
 
 import pygame  # This is the engine used in the game
 import numpy as np # Used in calculations and math
@@ -109,12 +109,12 @@ POINT_TYPE = {'EMPTY': 0,
               'GHOSTS_WALL': 2,
               'GHOSTS_AREA': 3,
               'FOOD': 4,
-              'GOLD': 5,
+              'COIN': 5,
               'HEAD': 6,
               'GHOST': 7}
 
 # Speed levels possible to human players. MEGA HARDCORE starts with MEDIUM and
-# increases with snake size
+# increases with pacman size
 LEVELS = [" EASY ", " MEDIUM ", " HARD ", " MEGA HARDCORE "]
 SPEEDS = {'EASY': 80,
           'MEDIUM': 60,
@@ -126,7 +126,7 @@ GAME_FPS = 100
 
 
 class GlobalVariables:
-    """Global variables to be used while drawing and moving the snake game.
+    """Global variables to be used while drawing and moving the pacman game.
 
     Attributes
     ----------
@@ -169,27 +169,27 @@ class GlobalVariables:
         return self.board_size * self.block_size
 
 
-class Snake:
-    """Player (snake) class which initializes head, body and board.
+class Pacman:
+    """Player (pacman) class which initializes head, body and board.
 
     The body attribute represents a list of positions of the body, which are in-
     cremented when moving/eating on the position [0]. The orientation represents
-    where the snake is looking at (head) and collisions happen when any element
+    where the pacman is looking at (head) and collisions happen when any element
     is superposed with the head.
 
     Attributes
     ----------
     head: list of 2 * int, default = [board_size / 4, board_size / 4]
-        The head of the snake, located according to the board size.
+        The head of the pacman, located according to the board size.
     body: list of lists of 2 * int
         Starts with 3 parts and grows when food is eaten.
     previous_action: int, default = 1
-        Last action which the snake took.
+        Last action which the pacman took.
     length: int, default = 3
-        Variable length of the snake, can increase when food is eaten.
+        Variable length of the pacman, can increase when food is eaten.
     """
     def __init__(self):
-        """Inits Snake with 3 body parts (one is the head) and pointing right"""
+        """Inits Pacman with 3 body parts (one is the head) and pointing right"""
         self.head = [int(VAR.board_size / 4), int(VAR.board_size / 4)]
         self.body = [[self.head[0], self.head[1]]]
         self.previous_action = 1
@@ -197,14 +197,15 @@ class Snake:
 
     def move(self,
              action,
-             food_pos, gold_pos = []):
+             food_pos,
+             coin_pos):
         """According to orientation, move 1 block. If the head is not positioned
         on food, pop a body part. Else, return without popping.
 
         Return
         ----------
         ate_food: boolean
-            Flag which represents whether the snake ate or not food.
+            Flag which represents whether the pacman ate or not food.
         """
         ate_food = False
         self.previous_action = action
@@ -227,11 +228,11 @@ class Snake:
 
             LOGGER.info('EVENT: FOOD EATEN')
 
-        if self.head in gold_pos:
+        if self.head in coin_pos:
             ate_food = True
-            gold_pos.remove(self.head)
+            coin_pos.remove(self.head)
 
-            LOGGER.info('EVENT: GOLD EATEN')
+            LOGGER.info('EVENT: COIN EATEN')
 
         return ate_food
 
@@ -250,7 +251,7 @@ class FoodGenerator:
                  current_state):
         """Initialize a food piece and set existence flag."""
         self.food_pos = []
-        self.gold_pos = []
+        self.coin_pos = []
         self.generate_food(current_state)
 
     def generate_food(self,
@@ -262,8 +263,27 @@ class FoodGenerator:
         pos: tuple of 2 * int
             Position of the food that was generated. It can't be in the body.
         """
-        empty_cells = np.where(current_state == POINT_TYPE['EMPTY'])
-        self.food_pos = [list(a) for a in zip(empty_cells[0], empty_cells[1])]
+        for row_idx, row in enumerate(current_state):
+            for col_idx, cell in enumerate(row):
+                if current_state[row_idx, col_idx] == POINT_TYPE['EMPTY']:
+                    try:
+                        if ((current_state[row_idx - 1, col_idx] == POINT_TYPE['WALL']
+                            and current_state[row_idx, col_idx - 1] == POINT_TYPE['WALL']) or
+                            (current_state[row_idx - 1, col_idx] == POINT_TYPE['WALL']
+                            and current_state[row_idx, col_idx + 1] == POINT_TYPE['WALL']) or
+                            (current_state[row_idx + 1, col_idx] == POINT_TYPE['WALL']
+                            and current_state[row_idx, col_idx - 1] == POINT_TYPE['WALL']) or
+                            (current_state[row_idx + 1, col_idx] == POINT_TYPE['WALL']
+                            and current_state[row_idx, col_idx + 1] == POINT_TYPE['WALL'])):
+                            self.coin_pos.append([row_idx, col_idx])
+                        else:
+                            self.food_pos.append([row_idx, col_idx])
+                    except IndexError:
+                        pass
+
+        # If no need to generate coin, use the following shorter statements
+        #empty_cells = np.where(current_state == POINT_TYPE['EMPTY'])
+        #self.food_pos = [list(a) for a in zip(empty_cells[0], empty_cells[1])]
 
         LOGGER.info('EVENT: FOOD GENERATED')
 
@@ -277,10 +297,10 @@ class Game:
         Pygame window to show the game.
     fps: pygame time clock
         Define Clock and ticks in which the game will be displayed.
-    snake: object
-        The actual snake who is going to be played.
+    pacman: object
+        The actual pacman who is going to be played.
     food_generator: object
-        Generator of food which responds to the snake.
+        Generator of food which responds to the pacman.
     food_pos: tuple of 2 * int
         Position of the food on the board.
     game_over: boolean
@@ -292,7 +312,7 @@ class Game:
     local_state: boolean, optional, default = False
         Whether to use or not game expertise (used mostly by robots players).
     relative_pos: boolean, optional, default = False
-        Whether to use or not relative position of the snake head. Instead of
+        Whether to use or not relative position of the pacman head. Instead of
         actions, use relative_actions.
     screen_rect: tuple of 2 * int
         The screen rectangle, used to draw relatively positioned blocks.
@@ -320,18 +340,18 @@ class Game:
             self.reset()
 
         self.font_path = self.resource_path("resources/fonts/product_sans_bold.ttf")
-        self.logo_path = self.resource_path("resources/images/ingame_snake_logo.png")
+        self.logo_path = self.resource_path("resources/images/ingame_pacman_logo.png")
 
     def reset(self):
         """Reset the game environment."""
         self.steps = 0
-        self.snake = Snake()
-        self.scored = False
+        self.pacman = Pacman()
+        self.score = 0
         self.game_over = False
         self.current_state = self.state()
         self.food_generator = FoodGenerator(self.current_state)
         self.food_pos = self.food_generator.food_pos
-        self.gold_pos = self.food_generator.gold_pos
+        self.coin_pos = self.food_generator.coin_pos
 
         return self.current_state
 
@@ -420,7 +440,7 @@ class Game:
         selected_option: int
             The selected option in the main loop.
         """
-        pygame.display.set_caption("snake-on-pygme | PLAY NOW!")
+        pygame.display.set_caption("pacman-on-pygme | PLAY NOW!")
 
         img = pygame.image.load(self.logo_path).convert()
         img = pygame.transform.scale(img, (VAR.canvas_size,
@@ -496,7 +516,7 @@ class Game:
                 text_block.draw()
 
             pygame.display.update()
-            pygame.display.set_caption("snake-on-pygame  |  Game starts in "
+            pygame.display.set_caption("pacman-on-pygame  |  Game starts in "
                                        + time + " second(s) ...")
             pygame.time.wait(1000)
 
@@ -587,7 +607,7 @@ class Game:
                                   window = self.window,
                                   scale = (1 / 10),
                                   block_type = "text")]
-        pygame.display.set_caption("snake-on-pygame  |  " + text_score
+        pygame.display.set_caption("pacman-on-pygame  |  " + text_score
                                    + "  |  GAME OVER...")
         LOGGER.info('EVENT: GAME OVER | FINAL %s', text_score)
         selected_option = self.cycle_menu(menu_options, list_menu, OPTIONS)
@@ -629,21 +649,21 @@ class Game:
             The final score for the match (discounted of initial length).
         """
         # The main loop, it pump key_presses and update the board every tick.
-        previous_size = self.snake.length # Initial size of the snake
+        previous_size = self.pacman.length # Initial size of the pacman
         current_size = previous_size # Initial size
 
-        # Main loop, where snakes moves after elapsed time is bigger than the
+        # Main loop, where pacmans moves after elapsed time is bigger than the
         # move_wait time. The last_key pressed is recorded to make the game more
         # smooth for human players.
         elapsed = 0
-        last_key = self.snake.previous_action
+        last_key = self.pacman.previous_action
         move_wait = VAR.game_speed
 
         while not self.game_over:
             elapsed += self.fps.get_time()  # Get elapsed time since last call.
 
             if mega_hardcore:  # Progressive speed increments, the hardest.
-                move_wait = VAR.game_speed - (2 * (self.snake.length - 3))
+                move_wait = VAR.game_speed - (2 * (self.pacman.length - 3))
 
             key_input = self.handle_input()  # Receive inputs with tick.
 
@@ -653,7 +673,7 @@ class Game:
             if elapsed >= move_wait:  # Move and redraw
                 elapsed = 0
                 self.play(last_key)
-                current_size = self.snake.length  # Update the body size
+                current_size = self.pacman.length  # Update the body size
 
                 if current_size > previous_size:
                     previous_size = current_size
@@ -663,7 +683,7 @@ class Game:
             pygame.display.update()
             self.fps.tick(GAME_FPS)  # Limit FPS to 100
 
-        score = current_size - 3  # After the game is over, record score
+        score = self.score  # After the game is over, record score
 
         return score, self.steps
 
@@ -673,17 +693,17 @@ class Game:
         Return
         ----------
         collided: boolean
-            Whether the snake collided or not.
+            Whether the pacman collided or not.
         """
         collided = False
 
-        if self.snake.head[0] > (VAR.board_size - 1) or self.snake.head[0] < 0:
+        if self.pacman.head[0] > (VAR.board_size - 1) or self.pacman.head[0] < 0:
             LOGGER.info('EVENT: WALL COLLISION')
             collided = True
-        elif self.snake.head[1] > (VAR.board_size - 1) or self.snake.head[1] < 0:
+        elif self.pacman.head[1] > (VAR.board_size - 1) or self.pacman.head[1] < 0:
             LOGGER.info('EVENT: WALL COLLISION')
             collided = True
-        elif self.snake.head in self.snake.body[1:]:
+        elif self.pacman.head in self.pacman.body[1:]:
             LOGGER.info('EVENT: BODY COLLISION')
             collided = True
 
@@ -692,20 +712,23 @@ class Game:
     def moving_to_wall(self, action):
         moving_to_wall = False
         state = self.current_state
-        pacman = self.snake.head
+        pacman = self.pacman.head
 
-        if (state[pacman[0] - 1, pacman[1]] == POINT_TYPE['WALL']
-            and action == ABSOLUTE_ACTIONS['LEFT']):
-            moving_to_wall = True
-        if (state[pacman[0] + 1, pacman[1]] == POINT_TYPE['WALL']
-            and action == ABSOLUTE_ACTIONS['RIGHT']):
-            moving_to_wall = True
-        if (state[pacman[0], pacman[1] + 1] == POINT_TYPE['WALL']
-            and action == ABSOLUTE_ACTIONS['DOWN']):
-            moving_to_wall = True
-        if (state[pacman[0], pacman[1] - 1] == POINT_TYPE['WALL']
-            and action == ABSOLUTE_ACTIONS['UP']):
-            moving_to_wall = True
+        try:
+            if (state[pacman[0] - 1, pacman[1]] == POINT_TYPE['WALL']
+                and action == ABSOLUTE_ACTIONS['LEFT']):
+                moving_to_wall = True
+            elif (state[pacman[0] + 1, pacman[1]] == POINT_TYPE['WALL']
+                and action == ABSOLUTE_ACTIONS['RIGHT']):
+                moving_to_wall = True
+            elif (state[pacman[0], pacman[1] + 1] == POINT_TYPE['WALL']
+                and action == ABSOLUTE_ACTIONS['DOWN']):
+                moving_to_wall = True
+            elif (state[pacman[0], pacman[1] - 1] == POINT_TYPE['WALL']
+                and action == ABSOLUTE_ACTIONS['UP']):
+                moving_to_wall = True
+        except IndexError:
+            LOGGER.warning('WARNING: INDEX ERROR ON THE CANVAS')
 
         return moving_to_wall
 
@@ -717,7 +740,7 @@ class Game:
         won: boolean
             Whether the score is greater than 0.
         """
-        return self.snake.length > 3
+        return self.pacman.length > 3
 
     def generate_food(self):
         """Generate new food if needed.
@@ -746,7 +769,7 @@ class Game:
 
         if keys[pygame.K_ESCAPE] or keys[pygame.K_q]:
             LOGGER.info('ACTION: KEY PRESSED: ESCAPE or Q')
-            self.over(self.snake.length - 3, self.steps)
+            self.over(self.score, self.steps)
         elif keys[pygame.K_LEFT]:
             LOGGER.info('ACTION: KEY PRESSED: LEFT')
             action = ABSOLUTE_ACTIONS['LEFT']
@@ -781,18 +804,19 @@ class Game:
         if self.game_over:
             pass
         else:
-            body = self.snake.body
+            body = self.pacman.body
 
             canvas[body[0][0], body[0][1]] = POINT_TYPE['HEAD']
 
             if self.local_state:
                 canvas = self.eval_local_safety(canvas, body)
 
-            if not hasattr(self, 'food_pos'):
-                return canvas
-
-            for food in self.food_pos:
-                canvas[food[0], food[1]] = POINT_TYPE['FOOD']
+            if hasattr(self, 'food_pos'):
+                for food in self.food_pos:
+                    canvas[food[0], food[1]] = POINT_TYPE['FOOD']
+            if hasattr(self, 'coin_pos'):
+                for coin in self.coin_pos:
+                    canvas[coin[0], coin[1]] = POINT_TYPE['COIN']
 
         return canvas
 
@@ -805,22 +829,22 @@ class Game:
             Translated action from relative to absolute.
         """
         if action == RELATIVE_ACTIONS['FORWARD']:
-            action = self.snake.previous_action
+            action = self.pacman.previous_action
         elif action == RELATIVE_ACTIONS['LEFT']:
-            if self.snake.previous_action == ABSOLUTE_ACTIONS['LEFT']:
+            if self.pacman.previous_action == ABSOLUTE_ACTIONS['LEFT']:
                 action = ABSOLUTE_ACTIONS['DOWN']
-            elif self.snake.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
                 action = ABSOLUTE_ACTIONS['UP']
-            elif self.snake.previous_action == ABSOLUTE_ACTIONS['UP']:
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['UP']:
                 action = ABSOLUTE_ACTIONS['LEFT']
             else:
                 action = ABSOLUTE_ACTIONS['RIGHT']
         else:
-            if self.snake.previous_action == ABSOLUTE_ACTIONS['LEFT']:
+            if self.pacman.previous_action == ABSOLUTE_ACTIONS['LEFT']:
                 action = ABSOLUTE_ACTIONS['UP']
-            elif self.snake.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
                 action = ABSOLUTE_ACTIONS['DOWN']
-            elif self.snake.previous_action == ABSOLUTE_ACTIONS['UP']:
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['UP']:
                 action = ABSOLUTE_ACTIONS['RIGHT']
             else:
                 action = ABSOLUTE_ACTIONS['LEFT']
@@ -828,8 +852,7 @@ class Game:
         return action
 
     def play(self, action):
-        """Move the snake to the direction, eat and check collision."""
-        self.scored = False
+        """Move the pacman to the direction, eat and check collision."""
         self.steps += 1
         self.current_state = self.state()
 
@@ -837,20 +860,22 @@ class Game:
             action = self.relative_to_absolute(action)
 
         currently_to_wall = self.moving_to_wall(action)
-        previously_to_wall = self.moving_to_wall(self.snake.previous_action)
+        previously_to_wall = self.moving_to_wall(self.pacman.previous_action)
 
         if not currently_to_wall:
-            if self.snake.move(action, self.food_pos):
-                self.scored = True
+            if self.pacman.move(action, self.food_pos, self.coin_pos):
+                self.score += 1
+            else:
+                self.score -= 1
         elif currently_to_wall and not previously_to_wall:
-            if self.snake.move(self.snake.previous_action, self.food_pos):
-                self.scored = True
+            if self.pacman.move(self.pacman.previous_action, self.food_pos, self.coin_pos):
+                self.score += 5
 
-        if self.player == "HUMAN":
-            if self.check_collision():
-                self.game_over = True
-        elif self.check_collision() or self.steps > 50 * self.snake.length:
-            self.game_over = True
+        #if self.player == "HUMAN":
+        #    if self.check_collision():
+        #        self.game_over = True
+        #elif self.check_collision() or self.steps > 50 * self.pacman.length:
+        #    self.game_over = True
 
     def get_reward(self):
         """Return the current reward. Can be used as the reward function.
@@ -864,13 +889,13 @@ class Game:
 
         if self.game_over:
             reward = REWARDS['GAME_OVER']
-        elif self.scored:
-            reward = self.snake.length
+        else:
+            reward = self.score
 
         return reward
 
     def draw(self):
-        """Draw the game, the snake and the food using pygame."""
+        """Draw the game, the pacman and the food using pygame."""
         if not hasattr(self, 'mouth_closed'):
             self.mouth_closed = True
 
@@ -885,7 +910,7 @@ class Game:
                                      element_idx * VAR.block_size, VAR.block_size,
                                      VAR.block_size))
                 elif element == POINT_TYPE['HEAD']:
-                    pygame.draw.circle(self.window, (225, 225, 0), (row_idx *
+                    pygame.draw.circle(self.window, (253, 184, 19), (row_idx *
                                        VAR.block_size + int(VAR.block_size / 2),
                                        element_idx * VAR.block_size +
                                        int(VAR.block_size / 2)),
@@ -897,17 +922,17 @@ class Game:
                                         element_idx * VAR.block_size +
                                         int(VAR.block_size / 2))
 
-                        if self.snake.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
+                        if self.pacman.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
                             first_point = (row_idx * VAR.block_size + VAR.block_size,
                                             element_idx * VAR.block_size)
                             second_point = (row_idx * VAR.block_size + VAR.block_size,
                                             element_idx * VAR.block_size + VAR.block_size)
-                        elif self.snake.previous_action == ABSOLUTE_ACTIONS['LEFT']:
+                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS['LEFT']:
                             first_point = (row_idx * VAR.block_size,
                                            element_idx * VAR.block_size)
                             second_point = (row_idx * VAR.block_size,
                                             element_idx * VAR.block_size + VAR.block_size)
-                        elif self.snake.previous_action == ABSOLUTE_ACTIONS['UP']:
+                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS['UP']:
                             first_point = (row_idx * VAR.block_size,
                                             element_idx * VAR.block_size)
                             second_point = (row_idx * VAR.block_size + VAR.block_size,
@@ -933,9 +958,15 @@ class Game:
                                      pygame.Rect(row_idx * VAR.block_size + (VAR.block_size / 4),
                                      element_idx * VAR.block_size + (VAR.block_size / 4), VAR.block_size / 2,
                                      VAR.block_size / 2))
+                elif element == POINT_TYPE['COIN']:
+                    pygame.draw.circle(self.window, (253, 184, 19), (row_idx *
+                                       VAR.block_size + int(VAR.block_size / 2),
+                                       element_idx * VAR.block_size +
+                                       int(VAR.block_size / 2)),
+                                       int(VAR.block_size/4), 0)
 
         pygame.display.set_caption("pacman-on-pygame  |  Score: "
-                                   + str(self.snake.length - 3))
+                                   + str(self.score))
 
     def step(self, action):
         """Play the action and returns state, reward and if over."""
