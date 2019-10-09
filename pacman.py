@@ -36,8 +36,8 @@ Usage for AI agents
         >>> print(game.steps)
         10 # current number of steps in a given episode.
 
-        >>> print(game.pacman.length)
-        4 # current length of the pacman in a given episode.
+        >>> print(game.pacman.score)
+        4 # current score of the pacman in a given episode.
 
     Possible methods:
 
@@ -334,6 +334,7 @@ class Game:
 
         self.font_path = self.resource_path("resources/fonts/product_sans_bold.ttf")
         self.logo_path = self.resource_path("resources/images/ingame_pacman_logo.png")
+        self.load_map("resources/maps/map1.txt")
 
     def reset(self):
         """Reset the game environment."""
@@ -637,7 +638,7 @@ class Game:
 
         Return
         ----------
-        score: int 3170-0899
+        score: int
             The final score for the match (discounted of initial length).
         """
         # Main loop, where pacmans moves after elapsed time is bigger than the
@@ -769,6 +770,14 @@ class Game:
 
         return action
 
+    def load_map(self, path):
+        """Load map file to play. """
+        if not hasattr(self, 'map'):
+            map_path = self.resource_path(path)
+
+            with open(map_path) as map_file:
+                self.map = np.loadtxt(map_file).transpose()
+
     def state(self):
         """Create a matrix of the current state of the game.
 
@@ -777,19 +786,10 @@ class Game:
         canvas: np.array of size board_size**2
             Return the current state of the game in a matrix.
         """
-        if not hasattr(self, 'map'):
-            map_path = self.resource_path("resources/maps/map1.txt")
-
-            with open(map_path) as map_file:
-                self.map = np.loadtxt(map_file).transpose()
-
         canvas = np.copy(self.map)
 
-        if self.game_over:
-            pass
-        else:
+        if not self.game_over:
             pacman = self.pacman.head
-
             canvas[pacman[0], pacman[1]] = POINT_TYPE['HEAD']
 
             if self.local_state:
@@ -974,7 +974,7 @@ class Game:
         self.draw()
 
         pygame.display.update()
-        self.fps.tick(60)  # Limit FPS to 60
+        self.fps.tick(GAME_FPS)  # Limit FPS to 60
 
     def get_name(self):
         """See test.py in my desktop, for a textinput_box input in pygame"""
