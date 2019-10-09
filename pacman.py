@@ -67,7 +67,6 @@ from os import environ, path  # To center the game window the best possible
 import random  # Random numbers used for the food
 import logging  # Logging function for movements and errors
 import json # For file handling (leaderboards)
-from itertools import tee  # For the color gradient on pacman
 
 import pygame  # This is the engine used in the game
 import numpy as np # Used in calculations and math
@@ -96,12 +95,12 @@ ABSOLUTE_ACTIONS = {'LEFT': 0,
                     'UP': 2,
                     'DOWN': 3,
                     'IDLE': 4}
-FORBIDDEN_MOVES = [(0, 1), (1, 0), (2, 3), (3, 2)]
 
 # Possible rewards in the game
-REWARDS = {'MOVE': -0.005,
-           'GAME_OVER': -1,
-           'SCORED': 1}
+REWARDS = {'MOVE': -1,
+           'GAME_OVER': -100,
+           'ATE_FOOD': 1,
+           'ATE_COIN': 5}
 
 # Types of point in the board
 POINT_TYPE = {'EMPTY': 0,
@@ -116,10 +115,10 @@ POINT_TYPE = {'EMPTY': 0,
 # Speed levels possible to human players. MEGA HARDCORE starts with MEDIUM and
 # increases with pacman size
 LEVELS = [" EASY ", " MEDIUM ", " HARD ", " MEGA HARDCORE "]
-SPEEDS = {'EASY': 80,
-          'MEDIUM': 60,
-          'HARD': 40,
-          'MEGA_HARDCORE': 65}
+SPEEDS = {'EASY': 160,
+          'MEDIUM': 120,
+          'HARD': 80,
+          'MEGA_HARDCORE': 100}
 
 # Set the constant FPS limit for the game. Smoothness depend on this.
 GAME_FPS = 100
@@ -148,8 +147,11 @@ class GlobalVariables:
     def __init__(self,
                  board_size = 30,
                  block_size = 20,
-                 head_color = (42, 42, 42),
+                 head_color = (253, 184, 19),
                  food_color = (200, 0, 0),
+                 coin_color = (255, 215, 0),
+                 wall_color = (42, 42, 42),
+                 bg_color = (225, 225, 225),
                  game_speed = 80,
                  benchmark = 1):
         """Initialize all global variables. Updated with argument_handler."""
@@ -157,6 +159,9 @@ class GlobalVariables:
         self.block_size = block_size
         self.head_color = head_color
         self.food_color = food_color
+        self.coin_color = coin_color
+        self.wall_color = wall_color
+        self.bg_color = bg_color
         self.game_speed = game_speed
         self.benchmark = benchmark
 
@@ -191,9 +196,7 @@ class Pacman:
     def __init__(self):
         """Inits Pacman with 3 body parts (one is the head) and pointing right"""
         self.head = [int(VAR.board_size / 4), int(VAR.board_size / 4)]
-        self.body = [[self.head[0], self.head[1]]]
         self.previous_action = 1
-        self.length = 3
 
     def move(self,
              action,
@@ -206,8 +209,10 @@ class Pacman:
         ----------
         ate_food: boolean
             Flag which represents whether the pacman ate or not food.
+        ate_coin: boolean
+            Flag which represents whether the pacman scored or not a coin.
         """
-        ate_food = False
+        ate_food = ate_coin = False # initiating boolean values
         self.previous_action = action
 
         if action == ABSOLUTE_ACTIONS['LEFT']:
@@ -219,9 +224,6 @@ class Pacman:
         elif action == ABSOLUTE_ACTIONS['DOWN']:
             self.head[1] += 1
 
-        self.body.insert(0, list(self.head))
-        self.body.pop()
-
         if self.head in food_pos:
             ate_food = True
             food_pos.remove(self.head)
@@ -229,40 +231,34 @@ class Pacman:
             LOGGER.info('EVENT: FOOD EATEN')
 
         if self.head in coin_pos:
-            ate_food = True
+            ate_coin = True
             coin_pos.remove(self.head)
 
             LOGGER.info('EVENT: COIN EATEN')
 
-        return ate_food
+        return ate_food, ate_coin
 
 
 class FoodGenerator:
-    """Generate and keep track of food.
+    """Generate and keep track of food and coins.
 
     Attributes
     ----------
-    pos:
-        Current position of food.
-    is_food_on_screen:
-        Flag for existence of food.
+    food_pos:
+        Array with all food positions.
+    coin_pos:
+        Array with all coin positions.
     """
     def __init__(self,
                  current_state):
-        """Initialize a food piece and set existence flag."""
+        """Initialize food and coins on the map."""
         self.food_pos = []
         self.coin_pos = []
         self.generate_food(current_state)
 
     def generate_food(self,
                       current_state):
-        """Generate food and verify if it's on a valid place.
-
-        Return
-        ----------
-        pos: tuple of 2 * int
-            Position of the food that was generated. It can't be in the body.
-        """
+        """Generate food and coins on empty spaces throughout the map."""
         for row_idx, row in enumerate(current_state):
             for col_idx, cell in enumerate(row):
                 if current_state[row_idx, col_idx] == POINT_TYPE['EMPTY']:
@@ -279,13 +275,10 @@ class FoodGenerator:
                         else:
                             self.food_pos.append([row_idx, col_idx])
                     except IndexError:
-                        pass
+                        LOGGER.warning('WARNING: INDEX ERROR WHILE GENERATING' +
+                                       'FOOD')
 
-        # If no need to generate coin, use the following shorter statements
-        #empty_cells = np.where(current_state == POINT_TYPE['EMPTY'])
-        #self.food_pos = [list(a) for a in zip(empty_cells[0], empty_cells[1])]
-
-        LOGGER.info('EVENT: FOOD GENERATED')
+        LOGGER.info('EVENT: FOOD AND COIN GENERATED')
 
 
 class Game:
@@ -363,7 +356,6 @@ class Game:
                                                VAR.canvas_size),
                                               flags)
         self.window.set_alpha(None)
-
         self.screen_rect = self.window.get_rect()
         self.fps = pygame.time.Clock()
 
@@ -382,7 +374,7 @@ class Game:
             pygame.event.pump()
             events = pygame.event.get()
 
-            self.window.fill(pygame.Color(225, 225, 225))
+            self.window.fill(VAR.bg_color)
 
             for i, option in enumerate(menu_options):
                 if option is not None:
@@ -440,7 +432,7 @@ class Game:
         selected_option: int
             The selected option in the main loop.
         """
-        pygame.display.set_caption("pacman-on-pygme | PLAY NOW!")
+        pygame.display.set_caption("pacman-on-pygame | PLAY NOW!")
 
         img = pygame.image.load(self.logo_path).convert()
         img = pygame.transform.scale(img, (VAR.canvas_size,
@@ -491,7 +483,7 @@ class Game:
     def start_match(self, wait):
         """Create some wait time before the actual drawing of the game."""
         for i in range(wait):
-            self.window.fill(pygame.Color(225, 225, 225))
+            self.window.fill(VAR.bg_color)
             time = ' {:d} '.format(wait - i)
 
             # Game starts in 3, 2, 1
@@ -645,13 +637,9 @@ class Game:
 
         Return
         ----------
-        score: int
+        score: int 3170-0899
             The final score for the match (discounted of initial length).
         """
-        # The main loop, it pump key_presses and update the board every tick.
-        previous_size = self.pacman.length # Initial size of the pacman
-        current_size = previous_size # Initial size
-
         # Main loop, where pacmans moves after elapsed time is bigger than the
         # move_wait time. The last_key pressed is recorded to make the game more
         # smooth for human players.
@@ -663,29 +651,24 @@ class Game:
             elapsed += self.fps.get_time()  # Get elapsed time since last call.
 
             if mega_hardcore:  # Progressive speed increments, the hardest.
-                move_wait = VAR.game_speed - (2 * (self.pacman.length - 3))
+                move_wait = VAR.game_speed - int(self.score / 50)
 
             key_input = self.handle_input()  # Receive inputs with tick.
 
+            if key_input == 'Q':
+                return self.score, self.steps
             if key_input is not None:
                 last_key = key_input
 
             if elapsed >= move_wait:  # Move and redraw
                 elapsed = 0
                 self.play(last_key)
-                current_size = self.pacman.length  # Update the body size
-
-                if current_size > previous_size:
-                    previous_size = current_size
-
                 self.draw()
 
             pygame.display.update()
-            self.fps.tick(GAME_FPS)  # Limit FPS to 100
+            self.fps.tick(GAME_FPS)  # Limit FPS to 'GAME_FPS'
 
-        score = self.score  # After the game is over, record score
-
-        return score, self.steps
+        return self.score, self.steps
 
     def check_collision(self):
         """Check wether any collisions happened with the wall or body.
@@ -728,7 +711,8 @@ class Game:
                 and action == ABSOLUTE_ACTIONS['UP']):
                 moving_to_wall = True
         except IndexError:
-            LOGGER.warning('WARNING: INDEX ERROR ON THE CANVAS')
+            LOGGER.warning('WARNING: INDEX ERROR WHILE EVALUATING MOVEMENT TO' +
+                           'WALL')
 
         return moving_to_wall
 
@@ -740,7 +724,7 @@ class Game:
         won: boolean
             Whether the score is greater than 0.
         """
-        return self.pacman.length > 3
+        return self.score > 0
 
     def generate_food(self):
         """Generate new food if needed.
@@ -769,7 +753,7 @@ class Game:
 
         if keys[pygame.K_ESCAPE] or keys[pygame.K_q]:
             LOGGER.info('ACTION: KEY PRESSED: ESCAPE or Q')
-            self.over(self.score, self.steps)
+            action = 'Q'
         elif keys[pygame.K_LEFT]:
             LOGGER.info('ACTION: KEY PRESSED: LEFT')
             action = ABSOLUTE_ACTIONS['LEFT']
@@ -804,9 +788,9 @@ class Game:
         if self.game_over:
             pass
         else:
-            body = self.pacman.body
+            pacman = self.pacman.head
 
-            canvas[body[0][0], body[0][1]] = POINT_TYPE['HEAD']
+            canvas[pacman[0], pacman[1]] = POINT_TYPE['HEAD']
 
             if self.local_state:
                 canvas = self.eval_local_safety(canvas, body)
@@ -852,8 +836,7 @@ class Game:
         return action
 
     def play(self, action):
-        """Move the pacman to the direction, eat and check collision."""
-        self.steps += 1
+        """If possible, move pacman, eat and check collision."""
         self.current_state = self.state()
 
         if self.relative_pos:
@@ -862,20 +845,29 @@ class Game:
         currently_to_wall = self.moving_to_wall(action)
         previously_to_wall = self.moving_to_wall(self.pacman.previous_action)
 
-        if not currently_to_wall:
-            if self.pacman.move(action, self.food_pos, self.coin_pos):
-                self.score += 1
-            else:
-                self.score -= 1
-        elif currently_to_wall and not previously_to_wall:
-            if self.pacman.move(self.pacman.previous_action, self.food_pos, self.coin_pos):
-                self.score += 5
+        ate_food = ate_coin = moved = False # initiating boolean variables
 
-        #if self.player == "HUMAN":
-        #    if self.check_collision():
-        #        self.game_over = True
-        #elif self.check_collision() or self.steps > 50 * self.pacman.length:
-        #    self.game_over = True
+        if not currently_to_wall:
+            ate_food, ate_coin = self.pacman.move(action,
+                                                        self.food_pos,
+                                                        self.coin_pos)
+
+            moved = True
+
+        elif currently_to_wall and not previously_to_wall:
+            ate_food, ate_coin = self.pacman.move(self.pacman.previous_action,
+                                                        self.food_pos,
+                                                        self.coin_pos)
+
+            moved = True
+
+        if ate_food:
+            self.score += REWARDS['ATE_FOOD']
+        elif ate_coin:
+            self.score += REWARDS['ATE_COIN']
+        elif moved:
+            self.score += REWARDS['MOVE']
+            self.steps += 1
 
     def get_reward(self):
         """Return the current reward. Can be used as the reward function.
@@ -885,8 +877,6 @@ class Game:
         reward: float
             Current reward of the game.
         """
-        reward = REWARDS['MOVE']
-
         if self.game_over:
             reward = REWARDS['GAME_OVER']
         else:
@@ -899,18 +889,18 @@ class Game:
         if not hasattr(self, 'mouth_closed'):
             self.mouth_closed = True
 
-        self.window.fill(pygame.Color(225, 225, 225))
+        self.window.fill(VAR.bg_color)
 
         # Improvement: Draw the map only once, then
         for row_idx, row in enumerate(self.current_state):
             for element_idx, element in enumerate(row):
                 if element == POINT_TYPE['WALL']:
-                    pygame.draw.rect(self.window, pygame.Color(0, 0, 0),
+                    pygame.draw.rect(self.window, VAR.wall_color,
                                      pygame.Rect(row_idx * VAR.block_size,
                                      element_idx * VAR.block_size, VAR.block_size,
                                      VAR.block_size))
                 elif element == POINT_TYPE['HEAD']:
-                    pygame.draw.circle(self.window, (253, 184, 19), (row_idx *
+                    pygame.draw.circle(self.window, VAR.head_color, (row_idx *
                                        VAR.block_size + int(VAR.block_size / 2),
                                        element_idx * VAR.block_size +
                                        int(VAR.block_size / 2)),
@@ -944,7 +934,7 @@ class Game:
                                             element_idx * VAR.block_size + VAR.block_size)
 
                         pygame.draw.polygon(self.window,
-                                            (225, 225, 225),
+                                            VAR.bg_color,
                                             [mouth_center,
                                              first_point,
                                              second_point],
@@ -955,11 +945,14 @@ class Game:
                         self.mouth_closed = True
                 elif element == POINT_TYPE['FOOD']:
                     pygame.draw.rect(self.window, VAR.food_color,
-                                     pygame.Rect(row_idx * VAR.block_size + (VAR.block_size / 4),
-                                     element_idx * VAR.block_size + (VAR.block_size / 4), VAR.block_size / 2,
-                                     VAR.block_size / 2))
+                                     pygame.Rect(row_idx * VAR.block_size +
+                                                 (VAR.block_size / 4),
+                                                 element_idx * VAR.block_size
+                                                 + (VAR.block_size / 4),
+                                                 VAR.block_size / 2,
+                                                 VAR.block_size / 2))
                 elif element == POINT_TYPE['COIN']:
-                    pygame.draw.circle(self.window, (253, 184, 19), (row_idx *
+                    pygame.draw.circle(self.window, VAR.coin_color, (row_idx *
                                        VAR.block_size + int(VAR.block_size / 2),
                                        element_idx * VAR.block_size +
                                        int(VAR.block_size / 2)),
@@ -981,7 +974,7 @@ class Game:
         self.draw()
 
         pygame.display.update()
-        self.fps.tick(60)  # Limit FPS to 100
+        self.fps.tick(60)  # Limit FPS to 60
 
     def get_name(self):
         """See test.py in my desktop, for a textinput_box input in pygame"""
@@ -1016,7 +1009,7 @@ class Game:
                     done = True
 
             input_box.update()
-            self.window.fill(pygame.Color(225, 225, 225))
+            self.window.fill(VAR.bg_color)
             input_box.draw()
             text_block.draw()
 
@@ -1150,16 +1143,19 @@ class Game:
         canvas: np.array of size board_size**2
             After using game expertise, change canvas values to WALL if true.
         """
-        if ((body[0][0] + 1) > (VAR.board_size - 1)
-            or ([body[0][0] + 1, body[0][1]]) in body[1:]):
-            canvas[VAR.board_size - 1, 0] = POINT_TYPE['WALL']
-        if (body[0][0] - 1) < 0 or ([body[0][0] - 1, body[0][1]]) in body[1:]:
-            canvas[VAR.board_size - 1, 1] = POINT_TYPE['WALL']
-        if (body[0][1] - 1) < 0 or ([body[0][0], body[0][1] - 1]) in body[1:]:
-            canvas[VAR.board_size - 1, 2] = POINT_TYPE['WALL']
-        if ((body[0][1] + 1) > (VAR.board_size - 1)
-            or ([body[0][0], body[0][1] + 1]) in body[1:]):
-            canvas[VAR.board_size - 1, 3] = POINT_TYPE['WALL']
+        try:
+            if ((body[0][0] + 1) > (VAR.board_size - 1)
+                or ([body[0][0] + 1, body[0][1]]) in body[1:]):
+                canvas[VAR.board_size - 1, 0] = POINT_TYPE['WALL']
+            if (body[0][0] - 1) < 0 or ([body[0][0] - 1, body[0][1]]) in body[1:]:
+                canvas[VAR.board_size - 1, 1] = POINT_TYPE['WALL']
+            if (body[0][1] - 1) < 0 or ([body[0][0], body[0][1] - 1]) in body[1:]:
+                canvas[VAR.board_size - 1, 2] = POINT_TYPE['WALL']
+            if ((body[0][1] + 1) > (VAR.board_size - 1)
+                or ([body[0][0], body[0][1] + 1]) in body[1:]):
+                canvas[VAR.board_size - 1, 3] = POINT_TYPE['WALL']
+        except IndexError:
+            LOGGER.warning('WARNING: INDEX ERROR WHILE EVALUATING LOCAL SAFETY')
 
         return canvas
 
