@@ -175,7 +175,72 @@ class GlobalVariables:
 
 
 class Pacman:
-    """Player (pacman) class which initializes head, body and board.
+    """Player (pacman) class which initializes head.
+
+    The body attribute represents a list of positions of the body, which are in-
+    cremented when moving/eating on the position [0]. The orientation represents
+    where the pacman is looking at (head) and collisions happen when any element
+    is superposed with the head.
+
+    Attributes
+    ----------
+    head: list of 2 * int, default = [board_size / 4, board_size / 4]
+        The head of the pacman, located according to the board size.
+    body: list of lists of 2 * int
+        Starts with 3 parts and grows when food is eaten.
+    previous_action: int, default = 1
+        Last action which the pacman took.
+    length: int, default = 3
+        Variable length of the pacman, can increase when food is eaten.
+    """
+    def __init__(self):
+        """Inits Pacman with 3 body parts (one is the head) and pointing right"""
+        self.head = [int(VAR.board_size / 4), int(VAR.board_size / 4)]
+        self.previous_action = 1
+
+    def move(self,
+             action,
+             food_pos,
+             coin_pos):
+        """According to orientation, move 1 block. If the head is not positioned
+        on food, pop a body part. Else, return without popping.
+
+        Return
+        ----------
+        ate_food: boolean
+            Flag which represents whether the pacman ate or not food.
+        ate_coin: boolean
+            Flag which represents whether the pacman scored or not a coin.
+        """
+        ate_food = ate_coin = False # initiating boolean values
+        self.previous_action = action
+
+        if action == ABSOLUTE_ACTIONS['LEFT']:
+            self.head[0] -= 1
+        elif action == ABSOLUTE_ACTIONS['RIGHT']:
+            self.head[0] += 1
+        elif action == ABSOLUTE_ACTIONS['UP']:
+            self.head[1] -= 1
+        elif action == ABSOLUTE_ACTIONS['DOWN']:
+            self.head[1] += 1
+
+        if self.head in food_pos:
+            ate_food = True
+            food_pos.remove(self.head)
+
+            LOGGER.info('EVENT: FOOD EATEN')
+
+        if self.head in coin_pos:
+            ate_coin = True
+            coin_pos.remove(self.head)
+
+            LOGGER.info('EVENT: COIN EATEN')
+
+        return ate_food, ate_coin
+
+
+class Ghost:
+    """Ghost class which initializes head.
 
     The body attribute represents a list of positions of the body, which are in-
     cremented when moving/eating on the position [0]. The orientation represents
@@ -337,12 +402,20 @@ class Game:
         self.load_map("resources/maps/map1.txt")
 
     def reset(self):
-        """Reset the game environment."""
+        """Reset the game environment.
+
+        Return
+        ----------
+        self.current_state: np.array of VAR.board_size x VAR.board_size
+            The first current_state.
+        """
         self.steps = 0
-        self.pacman = Pacman()
         self.score = 0
         self.game_over = False
+        self.pacman = Pacman()
+        self.ghosts = []
         self.current_state = self.state()
+
         self.food_generator = FoodGenerator(self.current_state)
         self.food_pos = self.food_generator.food_pos
         self.coin_pos = self.food_generator.coin_pos
@@ -367,7 +440,13 @@ class Game:
                    img = None,
                    img_rect = None,
                    leaderboards = False):
-        """Cycle through a given menu, waiting for an option to be clicked."""
+        """Cycle through a given menu, waiting for an option to be clicked.
+
+        Return
+        ----------
+        selected_option: int
+            The selected option in the main loop.
+        """
         selected = False
         selected_option = None
 
@@ -412,7 +491,15 @@ class Game:
         return selected_option
 
     def cycle_matches(self, n_matches, mega_hardcore = False):
-        """Cycle through matches until the end."""
+        """Cycle through matches until the end.
+
+        Return
+        ----------
+        score: array of int
+            Array of n_matches scores.
+        steps: array of int
+            Array of n_matches steps.
+        """
         score = array('i')
         step = array('i')
 
@@ -614,6 +701,8 @@ class Game:
         ----------
         speed: int
             The selected speed in the main loop.
+        mega_hardcore: boolean
+            Flag for mega_hardcore difficulty.
         """
         list_menu = ['EASY', 'MEDIUM', 'HARD', 'MEGA_HARDCORE']
         menu_options = [TextBlock(text = LEVELS[i],
@@ -640,6 +729,8 @@ class Game:
         ----------
         score: int
             The final score for the match (discounted of initial length).
+        steps: int
+            The final steps for the match.
         """
         # Main loop, where pacmans moves after elapsed time is bigger than the
         # move_wait time. The last_key pressed is recorded to make the game more
@@ -657,7 +748,7 @@ class Game:
             key_input = self.handle_input()  # Receive inputs with tick.
 
             if key_input == 'Q':
-                return self.score, self.steps
+                break
             if key_input is not None:
                 last_key = key_input
 
@@ -671,8 +762,8 @@ class Game:
 
         return self.score, self.steps
 
-    def check_collision(self):
-        """Check wether any collisions happened with the wall or body.
+    def collision(self):
+        """Check wether any collisions happened with the ghosts.
 
         Return
         ----------
@@ -681,19 +772,36 @@ class Game:
         """
         collided = False
 
-        if self.pacman.head[0] > (VAR.board_size - 1) or self.pacman.head[0] < 0:
-            LOGGER.info('EVENT: WALL COLLISION')
+        if self.pacman.head in self.ghosts:
             collided = True
-        elif self.pacman.head[1] > (VAR.board_size - 1) or self.pacman.head[1] < 0:
-            LOGGER.info('EVENT: WALL COLLISION')
-            collided = True
-        elif self.pacman.head in self.pacman.body[1:]:
-            LOGGER.info('EVENT: BODY COLLISION')
-            collided = True
+            LOGGER.info('EVENT: GHOST COLLISION')
 
         return collided
 
+    def eatables_ended(self):
+        """Check wether eatables ended.
+
+        Return
+        ----------
+        no_eatables: boolean
+            Whether there are eatables or not.
+        """
+        no_eatables = False
+
+        if len(self.food_pos) == 0 and len(self.coin_pos) == 0:
+            no_eatables = True
+            LOGGER.info('EVENT: EATABLES ENDED')
+
+        return no_eatables
+
     def moving_to_wall(self, action):
+        """Check wether the head is moving to wall.
+
+        Return
+        ----------
+        moving_to_wall: boolean
+            Whether the head is moving or not to a wall.
+        """
         moving_to_wall = False
         state = self.current_state
         pacman = self.pacman.head
@@ -725,7 +833,9 @@ class Game:
         won: boolean
             Whether the score is greater than 0.
         """
-        return self.score > 0
+        won = self.score > 0
+
+        return won
 
     def generate_food(self):
         """Generate new food if needed.
@@ -869,6 +979,9 @@ class Game:
             self.score += REWARDS['MOVE']
             self.steps += 1
 
+        if self.collision() or self.eatables_ended(): # Check game_over
+            self.game_over = True
+
     def get_reward(self):
         """Return the current reward. Can be used as the reward function.
 
@@ -977,7 +1090,13 @@ class Game:
         self.fps.tick(GAME_FPS)  # Limit FPS to 60
 
     def get_name(self):
-        """See test.py in my desktop, for a textinput_box input in pygame"""
+        """See test.py in my desktop, for a textinput_box input in pygame.
+
+        Return
+        ----------
+        text: string
+            Text received from handle_input.
+        """
         done = False
         input_box = InputBox(x = 200,
                              y = 300,
