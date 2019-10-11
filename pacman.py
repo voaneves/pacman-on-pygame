@@ -66,13 +66,13 @@ from array import array  # Efficient numeric arrays
 from os import environ, path  # To center the game window the best possible
 import random  # Random numbers used for the food
 import logging  # Logging function for movements and errors
-import json # For file handling (leaderboards)
+import json  # For file handling (leaderboards)
 
 import pygame  # This is the engine used in the game
-import numpy as np # Used in calculations and math
-import pandas as pd # Used to manage the leaderboards data
+import numpy as np  # Used in calculations and math
+import pandas as pd  # Used to manage the leaderboards data
 
-from utilities.text_block import TextBlock, InputBox # Textblocks for pygame
+from utilities.text_block import TextBlock, InputBox  # Textblocks for pygame
 
 __author__ = "Victor Neves"
 __license__ = "MIT"
@@ -81,44 +81,36 @@ __email__ = "victorneves478@gmail.com"
 __status__ = "Production"
 
 # Actions, options and forbidden moves
-OPTIONS = {'QUIT': 0,
-           'PLAY': 1,
-           'BENCHMARK': 2,
-           'LEADERBOARDS': 3,
-           'MENU': 4,
-           'ADD_TO_LEADERBOARDS': 5}
-RELATIVE_ACTIONS = {'LEFT': 0,
-                    'FORWARD': 1,
-                    'RIGHT': 2}
-ABSOLUTE_ACTIONS = {'LEFT': 0,
-                    'RIGHT': 1,
-                    'UP': 2,
-                    'DOWN': 3,
-                    'IDLE': 4}
+OPTIONS = {
+    "QUIT": 0,
+    "PLAY": 1,
+    "BENCHMARK": 2,
+    "LEADERBOARDS": 3,
+    "MENU": 4,
+    "ADD_TO_LEADERBOARDS": 5,
+}
+RELATIVE_ACTIONS = {"LEFT": 0, "FORWARD": 1, "RIGHT": 2}
+ABSOLUTE_ACTIONS = {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "IDLE": 4}
 
 # Possible rewards in the game
-REWARDS = {'MOVE': -1,
-           'GAME_OVER': -100,
-           'ATE_FOOD': 1,
-           'ATE_COIN': 5}
+REWARDS = {"MOVE": -1, "GAME_OVER": -100, "ATE_FOOD": 1, "ATE_COIN": 5}
 
 # Types of point in the board
-POINT_TYPE = {'EMPTY': 0,
-              'WALL': 1,
-              'GHOSTS_WALL': 2,
-              'GHOSTS_AREA': 3,
-              'FOOD': 4,
-              'COIN': 5,
-              'HEAD': 6,
-              'GHOST': 7}
+POINT_TYPE = {
+    "EMPTY": 0,
+    "WALL": 1,
+    "GHOSTS_WALL": 2,
+    "GHOSTS_AREA": 3,
+    "FOOD": 4,
+    "COIN": 5,
+    "HEAD": 6,
+    "GHOST": 7,
+}
 
 # Speed levels possible to human players. MEGA HARDCORE starts with MEDIUM and
 # increases with pacman size
 LEVELS = [" EASY ", " MEDIUM ", " HARD ", " MEGA HARDCORE "]
-SPEEDS = {'EASY': 160,
-          'MEDIUM': 120,
-          'HARD': 80,
-          'MEGA_HARDCORE': 100}
+SPEEDS = {"EASY": 160, "MEDIUM": 120, "HARD": 80, "MEGA_HARDCORE": 100}
 
 # Set the constant FPS limit for the game. Smoothness depend on this.
 GAME_FPS = 100
@@ -144,16 +136,19 @@ class GlobalVariables:
     benchmark: int, optional, default = 10
         Ammount of matches to benchmark and possibly go to leaderboards.
     """
-    def __init__(self,
-                 board_size = 30,
-                 block_size = 20,
-                 head_color = (253, 184, 19),
-                 food_color = (200, 0, 0),
-                 coin_color = (255, 215, 0),
-                 wall_color = (42, 42, 42),
-                 bg_color = (225, 225, 225),
-                 game_speed = 80,
-                 benchmark = 1):
+
+    def __init__(
+        self,
+        board_size=30,
+        block_size=20,
+        head_color=(253, 184, 19),
+        food_color=(200, 0, 0),
+        coin_color=(255, 215, 0),
+        wall_color=(42, 42, 42),
+        bg_color=(225, 225, 225),
+        game_speed=80,
+        benchmark=1,
+    ):
         """Initialize all global variables. Updated with argument_handler."""
         self.board_size = board_size
         self.block_size = block_size
@@ -165,8 +160,8 @@ class GlobalVariables:
         self.game_speed = game_speed
         self.benchmark = benchmark
 
-        if self.board_size > 50: # Warn the user about performance
-            LOGGER.warning('WARNING: BOARD IS TOO BIG, IT MAY RUN SLOWER.')
+        if self.board_size > 50:  # Warn the user about performance
+            LOGGER.warning("WARNING: BOARD IS TOO BIG, IT MAY RUN SLOWER.")
 
     @property
     def canvas_size(self):
@@ -193,15 +188,13 @@ class Pacman:
     length: int, default = 3
         Variable length of the pacman, can increase when food is eaten.
     """
+
     def __init__(self):
         """Inits Pacman with 3 body parts (one is the head) and pointing right"""
         self.head = [int(VAR.board_size / 4), int(VAR.board_size / 4)]
         self.previous_action = 1
 
-    def move(self,
-             action,
-             food_pos,
-             coin_pos):
+    def move(self, action, food_pos, coin_pos):
         """According to orientation, move 1 block. If the head is not positioned
         on food, pop a body part. Else, return without popping.
 
@@ -212,29 +205,29 @@ class Pacman:
         ate_coin: boolean
             Flag which represents whether the pacman scored or not a coin.
         """
-        ate_food = ate_coin = False # initiating boolean values
+        ate_food = ate_coin = False  # initiating boolean values
         self.previous_action = action
 
-        if action == ABSOLUTE_ACTIONS['LEFT']:
+        if action == ABSOLUTE_ACTIONS["LEFT"]:
             self.head[0] -= 1
-        elif action == ABSOLUTE_ACTIONS['RIGHT']:
+        elif action == ABSOLUTE_ACTIONS["RIGHT"]:
             self.head[0] += 1
-        elif action == ABSOLUTE_ACTIONS['UP']:
+        elif action == ABSOLUTE_ACTIONS["UP"]:
             self.head[1] -= 1
-        elif action == ABSOLUTE_ACTIONS['DOWN']:
+        elif action == ABSOLUTE_ACTIONS["DOWN"]:
             self.head[1] += 1
 
         if self.head in food_pos:
             ate_food = True
             food_pos.remove(self.head)
 
-            LOGGER.info('EVENT: FOOD EATEN')
+            LOGGER.info("EVENT: FOOD EATEN")
 
         if self.head in coin_pos:
             ate_coin = True
             coin_pos.remove(self.head)
 
-            LOGGER.info('EVENT: COIN EATEN')
+            LOGGER.info("EVENT: COIN EATEN")
 
         return ate_food, ate_coin
 
@@ -258,15 +251,13 @@ class Ghost:
     length: int, default = 3
         Variable length of the pacman, can increase when food is eaten.
     """
+
     def __init__(self):
         """Inits Pacman with 3 body parts (one is the head) and pointing right"""
         self.head = [int(VAR.board_size / 4), int(VAR.board_size / 4)]
         self.previous_action = 1
 
-    def move(self,
-             action,
-             food_pos,
-             coin_pos):
+    def move(self, action, food_pos, coin_pos):
         """According to orientation, move 1 block. If the head is not positioned
         on food, pop a body part. Else, return without popping.
 
@@ -277,29 +268,29 @@ class Ghost:
         ate_coin: boolean
             Flag which represents whether the pacman scored or not a coin.
         """
-        ate_food = ate_coin = False # initiating boolean values
+        ate_food = ate_coin = False  # initiating boolean values
         self.previous_action = action
 
-        if action == ABSOLUTE_ACTIONS['LEFT']:
+        if action == ABSOLUTE_ACTIONS["LEFT"]:
             self.head[0] -= 1
-        elif action == ABSOLUTE_ACTIONS['RIGHT']:
+        elif action == ABSOLUTE_ACTIONS["RIGHT"]:
             self.head[0] += 1
-        elif action == ABSOLUTE_ACTIONS['UP']:
+        elif action == ABSOLUTE_ACTIONS["UP"]:
             self.head[1] -= 1
-        elif action == ABSOLUTE_ACTIONS['DOWN']:
+        elif action == ABSOLUTE_ACTIONS["DOWN"]:
             self.head[1] += 1
 
         if self.head in food_pos:
             ate_food = True
             food_pos.remove(self.head)
 
-            LOGGER.info('EVENT: FOOD EATEN')
+            LOGGER.info("EVENT: FOOD EATEN")
 
         if self.head in coin_pos:
             ate_coin = True
             coin_pos.remove(self.head)
 
-            LOGGER.info('EVENT: COIN EATEN')
+            LOGGER.info("EVENT: COIN EATEN")
 
         return ate_food, ate_coin
 
@@ -314,36 +305,52 @@ class FoodGenerator:
     coin_pos:
         Array with all coin positions.
     """
-    def __init__(self,
-                 current_state):
+
+    def __init__(self, current_state):
         """Initialize food and coins on the map."""
         self.food_pos = []
         self.coin_pos = []
         self.generate_food(current_state)
 
-    def generate_food(self,
-                      current_state):
+    def generate_food(self, current_state):
         """Generate food and coins on empty spaces throughout the map."""
         for row_idx, row in enumerate(current_state):
             for col_idx, cell in enumerate(row):
-                if current_state[row_idx, col_idx] == POINT_TYPE['EMPTY']:
+                if current_state[row_idx, col_idx] == POINT_TYPE["EMPTY"]:
                     try:
-                        if ((current_state[row_idx - 1, col_idx] == POINT_TYPE['WALL']
-                            and current_state[row_idx, col_idx - 1] == POINT_TYPE['WALL']) or
-                            (current_state[row_idx - 1, col_idx] == POINT_TYPE['WALL']
-                            and current_state[row_idx, col_idx + 1] == POINT_TYPE['WALL']) or
-                            (current_state[row_idx + 1, col_idx] == POINT_TYPE['WALL']
-                            and current_state[row_idx, col_idx - 1] == POINT_TYPE['WALL']) or
-                            (current_state[row_idx + 1, col_idx] == POINT_TYPE['WALL']
-                            and current_state[row_idx, col_idx + 1] == POINT_TYPE['WALL'])):
+                        if (
+                            (
+                                current_state[row_idx - 1, col_idx]
+                                == POINT_TYPE["WALL"]
+                                and current_state[row_idx, col_idx - 1]
+                                == POINT_TYPE["WALL"]
+                            )
+                            or (
+                                current_state[row_idx - 1, col_idx]
+                                == POINT_TYPE["WALL"]
+                                and current_state[row_idx, col_idx + 1]
+                                == POINT_TYPE["WALL"]
+                            )
+                            or (
+                                current_state[row_idx + 1, col_idx]
+                                == POINT_TYPE["WALL"]
+                                and current_state[row_idx, col_idx - 1]
+                                == POINT_TYPE["WALL"]
+                            )
+                            or (
+                                current_state[row_idx + 1, col_idx]
+                                == POINT_TYPE["WALL"]
+                                and current_state[row_idx, col_idx + 1]
+                                == POINT_TYPE["WALL"]
+                            )
+                        ):
                             self.coin_pos.append([row_idx, col_idx])
                         else:
                             self.food_pos.append([row_idx, col_idx])
                     except IndexError:
-                        LOGGER.warning('WARNING: INDEX ERROR WHILE GENERATING' +
-                                       'FOOD')
+                        LOGGER.warning("WARNING: INDEX ERROR WHILE GENERATING" + "FOOD")
 
-        LOGGER.info('EVENT: FOOD AND COIN GENERATED')
+        LOGGER.info("EVENT: FOOD AND COIN GENERATED")
 
 
 class Game:
@@ -375,11 +382,10 @@ class Game:
     screen_rect: tuple of 2 * int
         The screen rectangle, used to draw relatively positioned blocks.
     """
-    def __init__(self,
-                 player = 'HUMAN',
-                 board_size = 30,
-                 local_state = False,
-                 relative_pos = False):
+
+    def __init__(
+        self, player="HUMAN", board_size=30, local_state=False, relative_pos=False
+    ):
         """Initialize window, fps and score. Change nb_actions if relative_pos"""
         VAR.board_size = board_size
         self.local_state = local_state
@@ -393,7 +399,7 @@ class Game:
                 self.nb_actions = 5
 
             self.action_space = self.nb_actions
-            self.observation_space = np.empty(shape = (board_size ** 2,))
+            self.observation_space = np.empty(shape=(board_size ** 2,))
 
             self.reset()
 
@@ -426,20 +432,20 @@ class Game:
         """Create a pygame display with board_size * block_size dimension."""
         pygame.init()
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE
-        self.window = pygame.display.set_mode((VAR.canvas_size,
-                                               VAR.canvas_size),
-                                              flags)
+        self.window = pygame.display.set_mode((VAR.canvas_size, VAR.canvas_size), flags)
         self.window.set_alpha(None)
         self.screen_rect = self.window.get_rect()
         self.fps = pygame.time.Clock()
 
-    def cycle_menu(self,
-                   menu_options,
-                   list_menu,
-                   dictionary,
-                   img = None,
-                   img_rect = None,
-                   leaderboards = False):
+    def cycle_menu(
+        self,
+        menu_options,
+        list_menu,
+        dictionary,
+        img=None,
+        img_rect=None,
+        leaderboards=False,
+    ):
         """Cycle through a given menu, waiting for an option to be clicked.
 
         Return
@@ -461,8 +467,10 @@ class Game:
                     option.draw()
                     option.hovered = False
 
-                    if (option.rect.collidepoint(pygame.mouse.get_pos())
-                        and option.block_type != 'text'):
+                    if (
+                        option.rect.collidepoint(pygame.mouse.get_pos())
+                        and option.block_type != "text"
+                    ):
                         option.hovered = True
 
                         for event in events:
@@ -470,10 +478,10 @@ class Game:
                                 if leaderboards:
                                     opt = list_menu[i]
 
-                                    if opt == 'MENU':
+                                    if opt == "MENU":
                                         return dictionary[opt], None
                                     else:
-                                        pages = len(opt.rstrip('0123456789'))
+                                        pages = len(opt.rstrip("0123456789"))
                                         page = int(opt[pages:])
                                         selected_option = dictionary[opt[:pages]]
 
@@ -490,7 +498,7 @@ class Game:
 
         return selected_option
 
-    def cycle_matches(self, n_matches, mega_hardcore = False):
+    def cycle_matches(self, n_matches, mega_hardcore=False):
         """Cycle through matches until the end.
 
         Return
@@ -500,12 +508,12 @@ class Game:
         steps: array of int
             Array of n_matches steps.
         """
-        score = array('i')
-        step = array('i')
+        score = array("i")
+        step = array("i")
 
         for _ in range(n_matches):
             self.reset()
-            self.start_match(wait = 3)
+            self.start_match(wait=3)
             current_score, current_step = self.single_player(mega_hardcore)
             score.append(current_score)
             step.append(current_step)
@@ -523,48 +531,51 @@ class Game:
         pygame.display.set_caption("pacman-on-pygame | PLAY NOW!")
 
         img = pygame.image.load(self.logo_path).convert()
-        img = pygame.transform.scale(img, (VAR.canvas_size,
-                                           int(VAR.canvas_size / 3)))
+        img = pygame.transform.scale(img, (VAR.canvas_size, int(VAR.canvas_size / 3)))
         img_rect = img.get_rect()
         img_rect.center = self.screen_rect.center
-        list_menu = ['PLAY', 'BENCHMARK', 'LEADERBOARDS', 'QUIT']
-        menu_options = [TextBlock(text = ' PLAY GAME ',
-                                  pos = (self.screen_rect.centerx,
-                                         4 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 12),
-                                  block_type = "menu"),
-                        TextBlock(text = ' BENCHMARK ',
-                                  pos = (self.screen_rect.centerx,
-                                         6 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 12),
-                                  block_type = "menu"),
-                        TextBlock(text = ' LEADERBOARDS ',
-                                  pos = (self.screen_rect.centerx,
-                                         8 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 12),
-                                  block_type = "menu"),
-                        TextBlock(text = ' QUIT ',
-                                  pos = (self.screen_rect.centerx,
-                                         10 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 12),
-                                  block_type = "menu")]
-        selected_option = self.cycle_menu(menu_options,
-                                          list_menu,
-                                          OPTIONS,
-                                          img,
-                                          img_rect)
+        list_menu = ["PLAY", "BENCHMARK", "LEADERBOARDS", "QUIT"]
+        menu_options = [
+            TextBlock(
+                text=" PLAY GAME ",
+                pos=(self.screen_rect.centerx, 4 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 12),
+                block_type="menu",
+            ),
+            TextBlock(
+                text=" BENCHMARK ",
+                pos=(self.screen_rect.centerx, 6 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 12),
+                block_type="menu",
+            ),
+            TextBlock(
+                text=" LEADERBOARDS ",
+                pos=(self.screen_rect.centerx, 8 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 12),
+                block_type="menu",
+            ),
+            TextBlock(
+                text=" QUIT ",
+                pos=(self.screen_rect.centerx, 10 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 12),
+                block_type="menu",
+            ),
+        ]
+        selected_option = self.cycle_menu(
+            menu_options, list_menu, OPTIONS, img, img_rect
+        )
 
         return selected_option
 
@@ -572,35 +583,40 @@ class Game:
         """Create some wait time before the actual drawing of the game."""
         for i in range(wait):
             self.window.fill(VAR.bg_color)
-            time = ' {:d} '.format(wait - i)
+            time = " {:d} ".format(wait - i)
 
             # Game starts in 3, 2, 1
-            text = [TextBlock(text = ' Game starts in ',
-                              pos = (self.screen_rect.centerx,
-                                     4 * self.screen_rect.centery / 10),
-                              canvas_size = VAR.canvas_size,
-                              font_path = self.font_path,
-                              window = self.window,
-                              scale = (1 / 12),
-                              block_type = "text"),
-                    TextBlock(text = time,
-                              pos = (self.screen_rect.centerx,
-                                     12 * self.screen_rect.centery / 10),
-                              canvas_size = VAR.canvas_size,
-                              font_path = self.font_path,
-                              window = self.window,
-                              scale = (1 / 1.5),
-                              block_type = "text")]
+            text = [
+                TextBlock(
+                    text=" Game starts in ",
+                    pos=(self.screen_rect.centerx, 4 * self.screen_rect.centery / 10),
+                    canvas_size=VAR.canvas_size,
+                    font_path=self.font_path,
+                    window=self.window,
+                    scale=(1 / 12),
+                    block_type="text",
+                ),
+                TextBlock(
+                    text=time,
+                    pos=(self.screen_rect.centerx, 12 * self.screen_rect.centery / 10),
+                    canvas_size=VAR.canvas_size,
+                    font_path=self.font_path,
+                    window=self.window,
+                    scale=(1 / 1.5),
+                    block_type="text",
+                ),
+            ]
 
             for text_block in text:
                 text_block.draw()
 
             pygame.display.update()
-            pygame.display.set_caption("pacman-on-pygame  |  Game starts in "
-                                       + time + " second(s) ...")
+            pygame.display.set_caption(
+                "pacman-on-pygame  |  Game starts in " + time + " second(s) ..."
+            )
             pygame.time.wait(1000)
 
-        LOGGER.info('EVENT: GAME START')
+        LOGGER.info("EVENT: GAME START")
 
     def start(self):
         """Use menu to select the option/game mode."""
@@ -609,25 +625,25 @@ class Game:
         while True:
             page = 1
 
-            if opt == OPTIONS['QUIT']:
+            if opt == OPTIONS["QUIT"]:
                 pygame.quit()
                 sys.exit()
-            elif opt == OPTIONS['PLAY']:
+            elif opt == OPTIONS["PLAY"]:
                 VAR.game_speed, mega_hardcore = self.select_speed()
-                score, _ = self.cycle_matches(n_matches = 1,
-                                              mega_hardcore = mega_hardcore)
+                score, _ = self.cycle_matches(n_matches=1, mega_hardcore=mega_hardcore)
                 opt = self.over(score, None)
-            elif opt == OPTIONS['BENCHMARK']:
+            elif opt == OPTIONS["BENCHMARK"]:
                 VAR.game_speed, mega_hardcore = self.select_speed()
-                score, steps = self.cycle_matches(n_matches = VAR.benchmark,
-                                                  mega_hardcore = mega_hardcore)
+                score, steps = self.cycle_matches(
+                    n_matches=VAR.benchmark, mega_hardcore=mega_hardcore
+                )
                 opt = self.over(score, steps)
-            elif opt == OPTIONS['LEADERBOARDS']:
+            elif opt == OPTIONS["LEADERBOARDS"]:
                 while page is not None:
                     opt, page = self.view_leaderboards(page)
-            elif opt == OPTIONS['MENU']:
+            elif opt == OPTIONS["MENU"]:
                 opt = self.menu()
-            if opt == OPTIONS['ADD_TO_LEADERBOARDS']:
+            if opt == OPTIONS["ADD_TO_LEADERBOARDS"]:
                 self.add_to_leaderboards(int(np.mean(score)), int(np.mean(steps)))
                 opt, page = self.view_leaderboards()
 
@@ -642,54 +658,61 @@ class Game:
         score_option = None
 
         if len(score) == VAR.benchmark:
-            score_option = TextBlock(text = ' ADD TO LEADERBOARDS ',
-                                     pos = (self.screen_rect.centerx,
-                                            8 * self.screen_rect.centery / 10),
-                                     canvas_size = VAR.canvas_size,
-                                     font_path = self.font_path,
-                                     window = self.window,
-                                     scale = (1 / 15),
-                                     block_type = "menu")
+            score_option = TextBlock(
+                text=" ADD TO LEADERBOARDS ",
+                pos=(self.screen_rect.centerx, 8 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 15),
+                block_type="menu",
+            )
 
-        text_score = 'SCORE: ' + str(int(np.mean(score)))
-        list_menu = ['PLAY', 'MENU', 'ADD_TO_LEADERBOARDS', 'QUIT']
-        menu_options = [TextBlock(text = ' PLAY AGAIN ',
-                                  pos = (self.screen_rect.centerx,
-                                         4 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 15),
-                                  block_type = "menu"),
-
-                        TextBlock(text = ' GO TO MENU ',
-                                  pos = (self.screen_rect.centerx,
-                                         6 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 15),
-                                  block_type = "menu"),
-                        score_option,
-                        TextBlock(text = ' QUIT ',
-                                  pos = (self.screen_rect.centerx,
-                                         10 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 15),
-                                  block_type = "menu"),
-                        TextBlock(text = text_score,
-                                  pos = (self.screen_rect.centerx,
-                                         15 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 10),
-                                  block_type = "text")]
-        pygame.display.set_caption("pacman-on-pygame  |  " + text_score
-                                   + "  |  GAME OVER...")
-        LOGGER.info('EVENT: GAME OVER | FINAL %s', text_score)
+        text_score = "SCORE: " + str(int(np.mean(score)))
+        list_menu = ["PLAY", "MENU", "ADD_TO_LEADERBOARDS", "QUIT"]
+        menu_options = [
+            TextBlock(
+                text=" PLAY AGAIN ",
+                pos=(self.screen_rect.centerx, 4 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 15),
+                block_type="menu",
+            ),
+            TextBlock(
+                text=" GO TO MENU ",
+                pos=(self.screen_rect.centerx, 6 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 15),
+                block_type="menu",
+            ),
+            score_option,
+            TextBlock(
+                text=" QUIT ",
+                pos=(self.screen_rect.centerx, 10 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 15),
+                block_type="menu",
+            ),
+            TextBlock(
+                text=text_score,
+                pos=(self.screen_rect.centerx, 15 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 10),
+                block_type="text",
+            ),
+        ]
+        pygame.display.set_caption(
+            "pacman-on-pygame  |  " + text_score + "  |  GAME OVER..."
+        )
+        LOGGER.info("EVENT: GAME OVER | FINAL %s", text_score)
         selected_option = self.cycle_menu(menu_options, list_menu, OPTIONS)
 
         return selected_option
@@ -704,25 +727,32 @@ class Game:
         mega_hardcore: boolean
             Flag for mega_hardcore difficulty.
         """
-        list_menu = ['EASY', 'MEDIUM', 'HARD', 'MEGA_HARDCORE']
-        menu_options = [TextBlock(text = LEVELS[i],
-                                  pos = (self.screen_rect.centerx,
-                                         4 * (i + 1) * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 10),
-                                  block_type = "menu") for i in range(len(list_menu))]
+        list_menu = ["EASY", "MEDIUM", "HARD", "MEGA_HARDCORE"]
+        menu_options = [
+            TextBlock(
+                text=LEVELS[i],
+                pos=(
+                    self.screen_rect.centerx,
+                    4 * (i + 1) * self.screen_rect.centery / 10,
+                ),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 10),
+                block_type="menu",
+            )
+            for i in range(len(list_menu))
+        ]
 
         speed = self.cycle_menu(menu_options, list_menu, SPEEDS)
         mega_hardcore = False
 
-        if speed == SPEEDS['MEGA_HARDCORE']:
+        if speed == SPEEDS["MEGA_HARDCORE"]:
             mega_hardcore = True
 
         return speed, mega_hardcore
 
-    def single_player(self, mega_hardcore = False):
+    def single_player(self, mega_hardcore=False):
         """Game loop for single_player (HUMANS).
 
         Return
@@ -747,7 +777,7 @@ class Game:
 
             key_input = self.handle_input()  # Receive inputs with tick.
 
-            if key_input == 'Q':
+            if key_input == "Q":
                 break
             if key_input is not None:
                 last_key = key_input
@@ -774,7 +804,7 @@ class Game:
 
         if self.pacman.head in self.ghosts:
             collided = True
-            LOGGER.info('EVENT: GHOST COLLISION')
+            LOGGER.info("EVENT: GHOST COLLISION")
 
         return collided
 
@@ -790,7 +820,7 @@ class Game:
 
         if len(self.food_pos) == 0 and len(self.coin_pos) == 0:
             no_eatables = True
-            LOGGER.info('EVENT: EATABLES ENDED')
+            LOGGER.info("EVENT: EATABLES ENDED")
 
         return no_eatables
 
@@ -807,21 +837,28 @@ class Game:
         pacman = self.pacman.head
 
         try:
-            if (state[pacman[0] - 1, pacman[1]] == POINT_TYPE['WALL']
-                and action == ABSOLUTE_ACTIONS['LEFT']):
+            if (
+                state[pacman[0] - 1, pacman[1]] == POINT_TYPE["WALL"]
+                and action == ABSOLUTE_ACTIONS["LEFT"]
+            ):
                 moving_to_wall = True
-            elif (state[pacman[0] + 1, pacman[1]] == POINT_TYPE['WALL']
-                and action == ABSOLUTE_ACTIONS['RIGHT']):
+            elif (
+                state[pacman[0] + 1, pacman[1]] == POINT_TYPE["WALL"]
+                and action == ABSOLUTE_ACTIONS["RIGHT"]
+            ):
                 moving_to_wall = True
-            elif (state[pacman[0], pacman[1] + 1] == POINT_TYPE['WALL']
-                and action == ABSOLUTE_ACTIONS['DOWN']):
+            elif (
+                state[pacman[0], pacman[1] + 1] == POINT_TYPE["WALL"]
+                and action == ABSOLUTE_ACTIONS["DOWN"]
+            ):
                 moving_to_wall = True
-            elif (state[pacman[0], pacman[1] - 1] == POINT_TYPE['WALL']
-                and action == ABSOLUTE_ACTIONS['UP']):
+            elif (
+                state[pacman[0], pacman[1] - 1] == POINT_TYPE["WALL"]
+                and action == ABSOLUTE_ACTIONS["UP"]
+            ):
                 moving_to_wall = True
         except IndexError:
-            LOGGER.warning('WARNING: INDEX ERROR WHILE EVALUATING MOVEMENT TO' +
-                           'WALL')
+            LOGGER.warning("WARNING: INDEX ERROR WHILE EVALUATING MOVEMENT TO" + "WALL")
 
         return moving_to_wall
 
@@ -863,26 +900,26 @@ class Game:
         action = None
 
         if keys[pygame.K_ESCAPE] or keys[pygame.K_q]:
-            LOGGER.info('ACTION: KEY PRESSED: ESCAPE or Q')
-            action = 'Q'
+            LOGGER.info("ACTION: KEY PRESSED: ESCAPE or Q")
+            action = "Q"
         elif keys[pygame.K_LEFT]:
-            LOGGER.info('ACTION: KEY PRESSED: LEFT')
-            action = ABSOLUTE_ACTIONS['LEFT']
+            LOGGER.info("ACTION: KEY PRESSED: LEFT")
+            action = ABSOLUTE_ACTIONS["LEFT"]
         elif keys[pygame.K_RIGHT]:
-            LOGGER.info('ACTION: KEY PRESSED: RIGHT')
-            action = ABSOLUTE_ACTIONS['RIGHT']
+            LOGGER.info("ACTION: KEY PRESSED: RIGHT")
+            action = ABSOLUTE_ACTIONS["RIGHT"]
         elif keys[pygame.K_UP]:
-            LOGGER.info('ACTION: KEY PRESSED: UP')
-            action = ABSOLUTE_ACTIONS['UP']
+            LOGGER.info("ACTION: KEY PRESSED: UP")
+            action = ABSOLUTE_ACTIONS["UP"]
         elif keys[pygame.K_DOWN]:
-            LOGGER.info('ACTION: KEY PRESSED: DOWN')
-            action = ABSOLUTE_ACTIONS['DOWN']
+            LOGGER.info("ACTION: KEY PRESSED: DOWN")
+            action = ABSOLUTE_ACTIONS["DOWN"]
 
         return action
 
     def load_map(self, path):
         """Load map file to play. """
-        if not hasattr(self, 'map'):
+        if not hasattr(self, "map"):
             map_path = self.resource_path(path)
 
             with open(map_path) as map_file:
@@ -900,17 +937,17 @@ class Game:
 
         if not self.game_over:
             pacman = self.pacman.head
-            canvas[pacman[0], pacman[1]] = POINT_TYPE['HEAD']
+            canvas[pacman[0], pacman[1]] = POINT_TYPE["HEAD"]
 
             if self.local_state:
                 canvas = self.eval_local_safety(canvas, body)
 
-            if hasattr(self, 'food_pos'):
+            if hasattr(self, "food_pos"):
                 for food in self.food_pos:
-                    canvas[food[0], food[1]] = POINT_TYPE['FOOD']
-            if hasattr(self, 'coin_pos'):
+                    canvas[food[0], food[1]] = POINT_TYPE["FOOD"]
+            if hasattr(self, "coin_pos"):
                 for coin in self.coin_pos:
-                    canvas[coin[0], coin[1]] = POINT_TYPE['COIN']
+                    canvas[coin[0], coin[1]] = POINT_TYPE["COIN"]
 
         return canvas
 
@@ -922,26 +959,26 @@ class Game:
         action: int
             Translated action from relative to absolute.
         """
-        if action == RELATIVE_ACTIONS['FORWARD']:
+        if action == RELATIVE_ACTIONS["FORWARD"]:
             action = self.pacman.previous_action
-        elif action == RELATIVE_ACTIONS['LEFT']:
-            if self.pacman.previous_action == ABSOLUTE_ACTIONS['LEFT']:
-                action = ABSOLUTE_ACTIONS['DOWN']
-            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
-                action = ABSOLUTE_ACTIONS['UP']
-            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['UP']:
-                action = ABSOLUTE_ACTIONS['LEFT']
+        elif action == RELATIVE_ACTIONS["LEFT"]:
+            if self.pacman.previous_action == ABSOLUTE_ACTIONS["LEFT"]:
+                action = ABSOLUTE_ACTIONS["DOWN"]
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS["RIGHT"]:
+                action = ABSOLUTE_ACTIONS["UP"]
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS["UP"]:
+                action = ABSOLUTE_ACTIONS["LEFT"]
             else:
-                action = ABSOLUTE_ACTIONS['RIGHT']
+                action = ABSOLUTE_ACTIONS["RIGHT"]
         else:
-            if self.pacman.previous_action == ABSOLUTE_ACTIONS['LEFT']:
-                action = ABSOLUTE_ACTIONS['UP']
-            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
-                action = ABSOLUTE_ACTIONS['DOWN']
-            elif self.pacman.previous_action == ABSOLUTE_ACTIONS['UP']:
-                action = ABSOLUTE_ACTIONS['RIGHT']
+            if self.pacman.previous_action == ABSOLUTE_ACTIONS["LEFT"]:
+                action = ABSOLUTE_ACTIONS["UP"]
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS["RIGHT"]:
+                action = ABSOLUTE_ACTIONS["DOWN"]
+            elif self.pacman.previous_action == ABSOLUTE_ACTIONS["UP"]:
+                action = ABSOLUTE_ACTIONS["RIGHT"]
             else:
-                action = ABSOLUTE_ACTIONS['LEFT']
+                action = ABSOLUTE_ACTIONS["LEFT"]
 
         return action
 
@@ -955,31 +992,29 @@ class Game:
         currently_to_wall = self.moving_to_wall(action)
         previously_to_wall = self.moving_to_wall(self.pacman.previous_action)
 
-        ate_food = ate_coin = moved = False # initiating boolean variables
+        ate_food = ate_coin = moved = False  # initiating boolean variables
 
         if not currently_to_wall:
-            ate_food, ate_coin = self.pacman.move(action,
-                                                        self.food_pos,
-                                                        self.coin_pos)
+            ate_food, ate_coin = self.pacman.move(action, self.food_pos, self.coin_pos)
 
             moved = True
 
         elif currently_to_wall and not previously_to_wall:
-            ate_food, ate_coin = self.pacman.move(self.pacman.previous_action,
-                                                        self.food_pos,
-                                                        self.coin_pos)
+            ate_food, ate_coin = self.pacman.move(
+                self.pacman.previous_action, self.food_pos, self.coin_pos
+            )
 
             moved = True
 
         if ate_food:
-            self.score += REWARDS['ATE_FOOD']
+            self.score += REWARDS["ATE_FOOD"]
         elif ate_coin:
-            self.score += REWARDS['ATE_COIN']
+            self.score += REWARDS["ATE_COIN"]
         elif moved:
-            self.score += REWARDS['MOVE']
+            self.score += REWARDS["MOVE"]
             self.steps += 1
 
-        if self.collision() or self.eatables_ended(): # Check game_over
+        if self.collision() or self.eatables_ended():  # Check game_over
             self.game_over = True
 
     def get_reward(self):
@@ -991,7 +1026,7 @@ class Game:
             Current reward of the game.
         """
         if self.game_over:
-            reward = REWARDS['GAME_OVER']
+            reward = REWARDS["GAME_OVER"]
         else:
             reward = self.score
 
@@ -999,7 +1034,7 @@ class Game:
 
     def draw(self):
         """Draw the game, the pacman and the food using pygame."""
-        if not hasattr(self, 'mouth_closed'):
+        if not hasattr(self, "mouth_closed"):
             self.mouth_closed = True
 
         self.window.fill(VAR.bg_color)
@@ -1007,72 +1042,106 @@ class Game:
         # Improvement: Draw the map only once, then
         for row_idx, row in enumerate(self.current_state):
             for element_idx, element in enumerate(row):
-                if element == POINT_TYPE['WALL']:
-                    pygame.draw.rect(self.window, VAR.wall_color,
-                                     pygame.Rect(row_idx * VAR.block_size,
-                                     element_idx * VAR.block_size, VAR.block_size,
-                                     VAR.block_size))
-                elif element == POINT_TYPE['HEAD']:
-                    pygame.draw.circle(self.window, VAR.head_color, (row_idx *
-                                       VAR.block_size + int(VAR.block_size / 2),
-                                       element_idx * VAR.block_size +
-                                       int(VAR.block_size / 2)),
-                                       int(VAR.block_size/2), 0)
+                if element == POINT_TYPE["WALL"]:
+                    pygame.draw.rect(
+                        self.window,
+                        VAR.wall_color,
+                        pygame.Rect(
+                            row_idx * VAR.block_size,
+                            element_idx * VAR.block_size,
+                            VAR.block_size,
+                            VAR.block_size,
+                        ),
+                    )
+                elif element == POINT_TYPE["HEAD"]:
+                    pygame.draw.circle(
+                        self.window,
+                        VAR.head_color,
+                        (
+                            row_idx * VAR.block_size + int(VAR.block_size / 2),
+                            element_idx * VAR.block_size + int(VAR.block_size / 2),
+                        ),
+                        int(VAR.block_size / 2),
+                        0,
+                    )
 
                     if self.mouth_closed:
-                        mouth_center = (row_idx *
-                                        VAR.block_size + int(VAR.block_size / 2),
-                                        element_idx * VAR.block_size +
-                                        int(VAR.block_size / 2))
+                        mouth_center = (
+                            row_idx * VAR.block_size + int(VAR.block_size / 2),
+                            element_idx * VAR.block_size + int(VAR.block_size / 2),
+                        )
 
-                        if self.pacman.previous_action == ABSOLUTE_ACTIONS['RIGHT']:
-                            first_point = (row_idx * VAR.block_size + VAR.block_size,
-                                            element_idx * VAR.block_size)
-                            second_point = (row_idx * VAR.block_size + VAR.block_size,
-                                            element_idx * VAR.block_size + VAR.block_size)
-                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS['LEFT']:
-                            first_point = (row_idx * VAR.block_size,
-                                           element_idx * VAR.block_size)
-                            second_point = (row_idx * VAR.block_size,
-                                            element_idx * VAR.block_size + VAR.block_size)
-                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS['UP']:
-                            first_point = (row_idx * VAR.block_size,
-                                            element_idx * VAR.block_size)
-                            second_point = (row_idx * VAR.block_size + VAR.block_size,
-                                            element_idx * VAR.block_size)
+                        if self.pacman.previous_action == ABSOLUTE_ACTIONS["RIGHT"]:
+                            first_point = (
+                                row_idx * VAR.block_size + VAR.block_size,
+                                element_idx * VAR.block_size,
+                            )
+                            second_point = (
+                                row_idx * VAR.block_size + VAR.block_size,
+                                element_idx * VAR.block_size + VAR.block_size,
+                            )
+                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS["LEFT"]:
+                            first_point = (
+                                row_idx * VAR.block_size,
+                                element_idx * VAR.block_size,
+                            )
+                            second_point = (
+                                row_idx * VAR.block_size,
+                                element_idx * VAR.block_size + VAR.block_size,
+                            )
+                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS["UP"]:
+                            first_point = (
+                                row_idx * VAR.block_size,
+                                element_idx * VAR.block_size,
+                            )
+                            second_point = (
+                                row_idx * VAR.block_size + VAR.block_size,
+                                element_idx * VAR.block_size,
+                            )
                         else:
-                            first_point = (row_idx * VAR.block_size,
-                                            element_idx * VAR.block_size + VAR.block_size)
-                            second_point = (row_idx * VAR.block_size + VAR.block_size,
-                                            element_idx * VAR.block_size + VAR.block_size)
+                            first_point = (
+                                row_idx * VAR.block_size,
+                                element_idx * VAR.block_size + VAR.block_size,
+                            )
+                            second_point = (
+                                row_idx * VAR.block_size + VAR.block_size,
+                                element_idx * VAR.block_size + VAR.block_size,
+                            )
 
-                        pygame.draw.polygon(self.window,
-                                            VAR.bg_color,
-                                            [mouth_center,
-                                             first_point,
-                                             second_point],
-                                            0)
+                        pygame.draw.polygon(
+                            self.window,
+                            VAR.bg_color,
+                            [mouth_center, first_point, second_point],
+                            0,
+                        )
 
                         self.mouth_closed = False
                     else:
                         self.mouth_closed = True
-                elif element == POINT_TYPE['FOOD']:
-                    pygame.draw.rect(self.window, VAR.food_color,
-                                     pygame.Rect(row_idx * VAR.block_size +
-                                                 (VAR.block_size / 4),
-                                                 element_idx * VAR.block_size
-                                                 + (VAR.block_size / 4),
-                                                 VAR.block_size / 2,
-                                                 VAR.block_size / 2))
-                elif element == POINT_TYPE['COIN']:
-                    pygame.draw.circle(self.window, VAR.coin_color, (row_idx *
-                                       VAR.block_size + int(VAR.block_size / 2),
-                                       element_idx * VAR.block_size +
-                                       int(VAR.block_size / 2)),
-                                       int(VAR.block_size/4), 0)
+                elif element == POINT_TYPE["FOOD"]:
+                    pygame.draw.rect(
+                        self.window,
+                        VAR.food_color,
+                        pygame.Rect(
+                            row_idx * VAR.block_size + (VAR.block_size / 4),
+                            element_idx * VAR.block_size + (VAR.block_size / 4),
+                            VAR.block_size / 2,
+                            VAR.block_size / 2,
+                        ),
+                    )
+                elif element == POINT_TYPE["COIN"]:
+                    pygame.draw.circle(
+                        self.window,
+                        VAR.coin_color,
+                        (
+                            row_idx * VAR.block_size + int(VAR.block_size / 2),
+                            element_idx * VAR.block_size + int(VAR.block_size / 2),
+                        ),
+                        int(VAR.block_size / 4),
+                        0,
+                    )
 
-        pygame.display.set_caption("pacman-on-pygame  |  Score: "
-                                   + str(self.score))
+        pygame.display.set_caption("pacman-on-pygame  |  Score: " + str(self.score))
 
     def step(self, action):
         """Play the action and returns state, reward and if over."""
@@ -1081,7 +1150,7 @@ class Game:
         return self.state(), self.get_reward(), self.game_over, None
 
     def render(self):
-        if not hasattr(self, 'window'):
+        if not hasattr(self, "window"):
             self.create_window()
 
         self.draw()
@@ -1098,21 +1167,24 @@ class Game:
             Text received from handle_input.
         """
         done = False
-        input_box = InputBox(x = 200,
-                             y = 300,
-                             w = 140,
-                             h = 32,
-                             window = self.window,
-                             font_path = self.resource_path("resources/fonts/product_sans_bold.ttf"))
+        input_box = InputBox(
+            x=200,
+            y=300,
+            w=140,
+            h=32,
+            window=self.window,
+            font_path=self.resource_path("resources/fonts/product_sans_bold.ttf"),
+        )
 
-        text_block = TextBlock(text = ' YOUR NAME ',
-                               pos = (self.screen_rect.centerx,
-                                      0.9 * self.screen_rect.centery),
-                               canvas_size = VAR.canvas_size,
-                               font_path = self.font_path,
-                               window = self.window,
-                               scale = (1 / 24),
-                               block_type = "text")
+        text_block = TextBlock(
+            text=" YOUR NAME ",
+            pos=(self.screen_rect.centerx, 0.9 * self.screen_rect.centery),
+            canvas_size=VAR.canvas_size,
+            font_path=self.font_path,
+            window=self.window,
+            scale=(1 / 24),
+            block_type="text",
+        )
 
         while not done:
             pygame.event.pump()
@@ -1140,112 +1212,135 @@ class Game:
         file_path = self.resource_path("resources/scores.json")
 
         name = self.get_name()
-        new_score = {'name': str(name),
-                     'ranking_data': {'score': score,
-                                      'step': step}}
+        new_score = {"name": str(name), "ranking_data": {"score": score, "step": step}}
 
         if not path.isfile(file_path):
             data = []
             data.append(new_score)
 
-            with open(file_path, mode = 'w') as leaderboards_file:
-                json.dump(data, leaderboards_file, indent = 4)
+            with open(file_path, mode="w") as leaderboards_file:
+                json.dump(data, leaderboards_file, indent=4)
         else:
             with open(file_path) as leaderboards_file:
                 data = json.load(leaderboards_file)
 
             data.append(new_score)
-            data.sort(key = lambda e: e['ranking_data']['score'], reverse = True)
+            data.sort(key=lambda e: e["ranking_data"]["score"], reverse=True)
 
-            with open(file_path, mode = 'w') as leaderboards_file:
-                json.dump(data, leaderboards_file, indent = 4)
+            with open(file_path, mode="w") as leaderboards_file:
+                json.dump(data, leaderboards_file, indent=4)
 
-    def view_leaderboards(self, page = 1):
+    def view_leaderboards(self, page=1):
         file_path = self.resource_path("resources/scores.json")
 
-        with open(file_path, 'r') as leaderboards_file:
+        with open(file_path, "r") as leaderboards_file:
             scores_data = json.loads(leaderboards_file.read())
 
         dataframe = pd.DataFrame.from_dict(scores_data)
-        dataframe = pd.concat([dataframe.drop(['ranking_data'], axis = 1),
-                               dataframe['ranking_data'].apply(pd.Series)],
-                               axis = 1) # Separate 'ranking_data' into 2 cols
+        dataframe = pd.concat(
+            [
+                dataframe.drop(["ranking_data"], axis=1),
+                dataframe["ranking_data"].apply(pd.Series),
+            ],
+            axis=1,
+        )  # Separate 'ranking_data' into 2 cols
         ammount_of_players = len(dataframe.index)
         players_per_page = 5
         number_of_pages = -(-ammount_of_players // players_per_page)
         score_page = []
-        score_header = '  POS       NAME                       SCORE         STEP  '
+        score_header = "  POS       NAME                       SCORE         STEP  "
 
-        list_menu = ['LEADERBOARDS']
-        menu_options = [TextBlock(text = ' LEADERBOARDS ',
-                                  pos = (self.screen_rect.centerx,
-                                         2 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 12),
-                                  block_type = "text")]
+        list_menu = ["LEADERBOARDS"]
+        menu_options = [
+            TextBlock(
+                text=" LEADERBOARDS ",
+                pos=(self.screen_rect.centerx, 2 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 12),
+                block_type="text",
+            )
+        ]
 
-        list_menu.append('HEADER')
-        menu_options.append(TextBlock(text = score_header,
-                                  pos = (self.screen_rect.centerx,
-                                         4 * self.screen_rect.centery / 10),
-                                  canvas_size = VAR.canvas_size,
-                                  font_path = self.font_path,
-                                  window = self.window,
-                                  scale = (1 / 24),
-                                  block_type = "text",
-                                  background_color = (152, 152, 152)))
+        list_menu.append("HEADER")
+        menu_options.append(
+            TextBlock(
+                text=score_header,
+                pos=(self.screen_rect.centerx, 4 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 24),
+                block_type="text",
+                background_color=(152, 152, 152),
+            )
+        )
 
         # Adding pages to the loop
         for i in range(1, number_of_pages + 1):
-            score_page.append(dataframe.loc[dataframe.index.intersection(range(5 * (i - 1), 5 * i))])
+            score_page.append(
+                dataframe.loc[dataframe.index.intersection(range(5 * (i - 1), 5 * i))]
+            )
 
-            list_menu.append(('LEADERBOARDS{:d}'.format(i)))
-            menu_options.append(TextBlock(text = (' {:d} '.format(i)),
-                                          pos = ((2 * self.screen_rect.centerx
-                                                   / (number_of_pages + 1) * i),
-                                                 (13 * self.screen_rect.centery
-                                                  / 10)),
-                                          canvas_size = VAR.canvas_size,
-                                          font_path = self.font_path,
-                                          window = self.window,
-                                          scale = (1 / 18),
-                                          block_type = "menu"))
+            list_menu.append(("LEADERBOARDS{:d}".format(i)))
+            menu_options.append(
+                TextBlock(
+                    text=(" {:d} ".format(i)),
+                    pos=(
+                        (2 * self.screen_rect.centerx / (number_of_pages + 1) * i),
+                        (13 * self.screen_rect.centery / 10),
+                    ),
+                    canvas_size=VAR.canvas_size,
+                    font_path=self.font_path,
+                    window=self.window,
+                    scale=(1 / 18),
+                    block_type="menu",
+                )
+            )
 
         for i, row in score_page[page - 1].iterrows():
-            list_menu.append(('RANK{:d}'.format(i)))
+            list_menu.append(("RANK{:d}".format(i)))
 
-            pos = '{0: <5}         '.format(1 + i)
-            name = '{0: <25}      '.format(row['name'])
-            score = '{0: <5}               '.format(row['score'])
-            step = '{0: <5}  '.format(row['step'])
+            pos = "{0: <5}         ".format(1 + i)
+            name = "{0: <25}      ".format(row["name"])
+            score = "{0: <5}               ".format(row["score"])
+            step = "{0: <5}  ".format(row["step"])
             data = pos + name + score + step
-            menu_options.append(TextBlock(text = data,
-                                          pos = (self.screen_rect.centerx,
-                                                 ((5 + 1.5 * (i - (page - 1) * 5))
-                                                  * (self.screen_rect.centery
-                                                     / 10))),
-                                          canvas_size = VAR.canvas_size,
-                                          font_path = self.font_path,
-                                          window = self.window,
-                                          scale = (1 / 24),
-                                          block_type = "text"))
+            menu_options.append(
+                TextBlock(
+                    text=data,
+                    pos=(
+                        self.screen_rect.centerx,
+                        (
+                            (5 + 1.5 * (i - (page - 1) * 5))
+                            * (self.screen_rect.centery / 10)
+                        ),
+                    ),
+                    canvas_size=VAR.canvas_size,
+                    font_path=self.font_path,
+                    window=self.window,
+                    scale=(1 / 24),
+                    block_type="text",
+                )
+            )
 
-        list_menu.append('MENU')
-        menu_options.append(TextBlock(text = ' MENU ',
-                                      pos = (self.screen_rect.centerx,
-                                             16 * self.screen_rect.centery / 10),
-                                      canvas_size = VAR.canvas_size,
-                                      font_path = self.font_path,
-                                      window = self.window,
-                                      scale = (1 / 12),
-                                      block_type = "menu"))
+        list_menu.append("MENU")
+        menu_options.append(
+            TextBlock(
+                text=" MENU ",
+                pos=(self.screen_rect.centerx, 16 * self.screen_rect.centery / 10),
+                canvas_size=VAR.canvas_size,
+                font_path=self.font_path,
+                window=self.window,
+                scale=(1 / 12),
+                block_type="menu",
+            )
+        )
 
-        selected_option, page = self.cycle_menu(menu_options,
-                                                list_menu,
-                                                OPTIONS,
-                                                leaderboards = True)
+        selected_option, page = self.cycle_menu(
+            menu_options, list_menu, OPTIONS, leaderboards=True
+        )
 
         return selected_option, page
 
@@ -1263,39 +1358,43 @@ class Game:
             After using game expertise, change canvas values to WALL if true.
         """
         try:
-            if ((body[0][0] + 1) > (VAR.board_size - 1)
-                or ([body[0][0] + 1, body[0][1]]) in body[1:]):
-                canvas[VAR.board_size - 1, 0] = POINT_TYPE['WALL']
+            if (body[0][0] + 1) > (VAR.board_size - 1) or (
+                [body[0][0] + 1, body[0][1]]
+            ) in body[1:]:
+                canvas[VAR.board_size - 1, 0] = POINT_TYPE["WALL"]
             if (body[0][0] - 1) < 0 or ([body[0][0] - 1, body[0][1]]) in body[1:]:
-                canvas[VAR.board_size - 1, 1] = POINT_TYPE['WALL']
+                canvas[VAR.board_size - 1, 1] = POINT_TYPE["WALL"]
             if (body[0][1] - 1) < 0 or ([body[0][0], body[0][1] - 1]) in body[1:]:
-                canvas[VAR.board_size - 1, 2] = POINT_TYPE['WALL']
-            if ((body[0][1] + 1) > (VAR.board_size - 1)
-                or ([body[0][0], body[0][1] + 1]) in body[1:]):
-                canvas[VAR.board_size - 1, 3] = POINT_TYPE['WALL']
+                canvas[VAR.board_size - 1, 2] = POINT_TYPE["WALL"]
+            if (body[0][1] + 1) > (VAR.board_size - 1) or (
+                [body[0][0], body[0][1] + 1]
+            ) in body[1:]:
+                canvas[VAR.board_size - 1, 3] = POINT_TYPE["WALL"]
         except IndexError:
-            LOGGER.warning('WARNING: INDEX ERROR WHILE EVALUATING LOCAL SAFETY')
+            LOGGER.warning("WARNING: INDEX ERROR WHILE EVALUATING LOCAL SAFETY")
 
         return canvas
 
     @staticmethod
     def resource_path(relative_path):
         """Function to return absolute paths. Used while creating .exe file."""
-        if hasattr(sys, '_MEIPASS'):
+        if hasattr(sys, "_MEIPASS"):
             return path.join(sys._MEIPASS, relative_path)
 
         return path.join(path.dirname(path.realpath(__file__)), relative_path)
 
 
-VAR = GlobalVariables() # Initializing GlobalVariables
-LOGGER = logging.getLogger(__name__) # Setting logger
-environ['SDL_VIDEO_CENTERED'] = '1' # Centering the window
+VAR = GlobalVariables()  # Initializing GlobalVariables
+LOGGER = logging.getLogger(__name__)  # Setting logger
+environ["SDL_VIDEO_CENTERED"] = "1"  # Centering the window
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # The main function where the game will be executed.
-    logging.basicConfig(format = '%(asctime)s %(module)s %(levelname)s: %(message)s',
-                        datefmt = '%m/%d/%Y %I:%M:%S %p',
-                        level = logging.INFO)
-    GAME = Game(player = "HUMAN")
+    logging.basicConfig(
+        format="%(asctime)s %(module)s %(levelname)s: %(message)s",
+        datefmt="%m/%d/%Y %I:%M:%S %p",
+        level=logging.INFO,
+    )
+    GAME = Game(player="HUMAN")
     GAME.create_window()
     GAME.start()
