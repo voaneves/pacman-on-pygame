@@ -73,6 +73,7 @@ import numpy as np  # Used in calculations and math
 import pandas as pd  # Used to manage the leaderboards data
 
 from utilities.text_block import TextBlock, InputBox  # Textblocks for pygame
+from utilities.astar import astar  # Textblocks for pygame
 
 __author__ = "Victor Neves"
 __license__ = "MIT"
@@ -145,6 +146,7 @@ class GlobalVariables:
         food_color=(200, 0, 0),
         coin_color=(255, 215, 0),
         wall_color=(42, 42, 42),
+        ghosts_area=(152, 152, 152),
         bg_color=(225, 225, 225),
         game_speed=80,
         benchmark=1,
@@ -156,6 +158,7 @@ class GlobalVariables:
         self.food_color = food_color
         self.coin_color = coin_color
         self.wall_color = wall_color
+        self.ghosts_area = ghosts_area
         self.bg_color = bg_color
         self.game_speed = game_speed
         self.benchmark = benchmark
@@ -252,12 +255,11 @@ class Ghost:
         Variable length of the pacman, can increase when food is eaten.
     """
 
-    def __init__(self):
+    def __init__(self, ghosts_area):
         """Inits Pacman with 3 body parts (one is the head) and pointing right"""
-        self.head = [int(VAR.board_size / 4), int(VAR.board_size / 4)]
-        self.previous_action = 1
+        self.head = random.choice(ghosts_area)
 
-    def move(self, action, food_pos, coin_pos):
+    def move(self, map, pacman):
         """According to orientation, move 1 block. If the head is not positioned
         on food, pop a body part. Else, return without popping.
 
@@ -268,31 +270,20 @@ class Ghost:
         ate_coin: boolean
             Flag which represents whether the pacman scored or not a coin.
         """
-        ate_food = ate_coin = False  # initiating boolean values
-        self.previous_action = action
+        next_block = self.find_path(map, pacman)  # find path using A*
+        self.head = next_block
 
-        if action == ABSOLUTE_ACTIONS["LEFT"]:
-            self.head[0] -= 1
-        elif action == ABSOLUTE_ACTIONS["RIGHT"]:
-            self.head[0] += 1
-        elif action == ABSOLUTE_ACTIONS["UP"]:
-            self.head[1] -= 1
-        elif action == ABSOLUTE_ACTIONS["DOWN"]:
-            self.head[1] += 1
+    def find_path(self, map, pacman):
+        """
+        """
+        path = astar(map, (self.head[0], self.head[1]), (pacman[0], pacman[1]))
 
-        if self.head in food_pos:
-            ate_food = True
-            food_pos.remove(self.head)
+        try:
+            next_block = path[-1]
+        except IndexError:
+            next_block = self.head
 
-            LOGGER.info("EVENT: FOOD EATEN")
-
-        if self.head in coin_pos:
-            ate_coin = True
-            coin_pos.remove(self.head)
-
-            LOGGER.info("EVENT: COIN EATEN")
-
-        return ate_food, ate_coin
+        return next_block
 
 
 class FoodGenerator:
@@ -308,47 +299,16 @@ class FoodGenerator:
 
     def __init__(self, current_state):
         """Initialize food and coins on the map."""
-        self.food_pos = []
-        self.coin_pos = []
         self.generate_food(current_state)
 
     def generate_food(self, current_state):
         """Generate food and coins on empty spaces throughout the map."""
-        for row_idx, row in enumerate(current_state):
-            for col_idx, cell in enumerate(row):
-                if current_state[row_idx, col_idx] == POINT_TYPE["EMPTY"]:
-                    try:
-                        if (
-                            (
-                                current_state[row_idx - 1, col_idx]
-                                == POINT_TYPE["WALL"]
-                                and current_state[row_idx, col_idx - 1]
-                                == POINT_TYPE["WALL"]
-                            )
-                            or (
-                                current_state[row_idx - 1, col_idx]
-                                == POINT_TYPE["WALL"]
-                                and current_state[row_idx, col_idx + 1]
-                                == POINT_TYPE["WALL"]
-                            )
-                            or (
-                                current_state[row_idx + 1, col_idx]
-                                == POINT_TYPE["WALL"]
-                                and current_state[row_idx, col_idx - 1]
-                                == POINT_TYPE["WALL"]
-                            )
-                            or (
-                                current_state[row_idx + 1, col_idx]
-                                == POINT_TYPE["WALL"]
-                                and current_state[row_idx, col_idx + 1]
-                                == POINT_TYPE["WALL"]
-                            )
-                        ):
-                            self.coin_pos.append([row_idx, col_idx])
-                        else:
-                            self.food_pos.append([row_idx, col_idx])
-                    except IndexError:
-                        LOGGER.warning("WARNING: INDEX ERROR WHILE GENERATING" + "FOOD")
+        self.food_pos = [
+            list(i) for i in zip(*np.where(current_state == POINT_TYPE["EMPTY"]))
+        ]
+        self.coin_pos = [
+            list(i) for i in zip(*np.where(current_state == POINT_TYPE["COIN"]))
+        ]
 
         LOGGER.info("EVENT: FOOD AND COIN GENERATED")
 
@@ -406,6 +366,12 @@ class Game:
         self.font_path = self.resource_path("resources/fonts/product_sans_bold.ttf")
         self.logo_path = self.resource_path("resources/images/ingame_pacman_logo.png")
         self.load_map("resources/maps/map1.txt")
+        self.ghosts_area = [
+            list(i) for i in zip(*np.where(self.map == POINT_TYPE["GHOSTS_AREA"]))
+        ]
+        self.ghosts_walls = [
+            list(i) for i in zip(*np.where(self.map == POINT_TYPE["GHOSTS_WALL"]))
+        ]
 
     def reset(self):
         """Reset the game environment.
@@ -419,7 +385,7 @@ class Game:
         self.score = 0
         self.game_over = False
         self.pacman = Pacman()
-        self.ghosts = []
+        self.initiate_ghosts(n_ghosts=1)
         self.current_state = self.state()
 
         self.food_generator = FoodGenerator(self.current_state)
@@ -427,6 +393,13 @@ class Game:
         self.coin_pos = self.food_generator.coin_pos
 
         return self.current_state
+
+    def initiate_ghosts(self, n_ghosts=1):
+        self.ghosts = []
+
+        for _ in range(n_ghosts):
+            ghost = Ghost(self.ghosts_area)
+            self.ghosts.append(ghost)
 
     def create_window(self):
         """Create a pygame display with board_size * block_size dimension."""
@@ -766,11 +739,16 @@ class Game:
         # move_wait time. The last_key pressed is recorded to make the game more
         # smooth for human players.
         elapsed = 0
+        elapsed_pacman = 0
+        elapsed_ghosts = 0
         last_key = self.pacman.previous_action
-        move_wait = VAR.game_speed
+        move_wait_pacman = VAR.game_speed
+        move_wait_ghosts = move_wait_pacman * 1.25
 
         while not self.game_over:
-            elapsed += self.fps.get_time()  # Get elapsed time since last call.
+            elapsed = self.fps.get_time()  # Get elapsed time since last call.
+            elapsed_pacman += elapsed
+            elapsed_ghosts += elapsed
 
             if mega_hardcore:  # Progressive speed increments, the hardest.
                 move_wait = VAR.game_speed - int(self.score / 50)
@@ -782,8 +760,15 @@ class Game:
             if key_input is not None:
                 last_key = key_input
 
-            if elapsed >= move_wait:  # Move and redraw
-                elapsed = 0
+            if elapsed_ghosts >= move_wait_ghosts:
+                elapsed_ghosts = 0
+
+                for ghost in self.ghosts:
+                    ghost.move(self.map, self.pacman.head)
+
+                self.draw()
+            if elapsed_pacman >= move_wait_pacman:  # Move and redraw
+                elapsed_pacman = 0
                 self.play(last_key)
                 self.draw()
 
@@ -838,22 +823,26 @@ class Game:
 
         try:
             if (
-                state[pacman[0] - 1, pacman[1]] == POINT_TYPE["WALL"]
+                state[pacman[0] - 1, pacman[1]]
+                in [POINT_TYPE["WALL"], POINT_TYPE["GHOSTS_WALL"]]
                 and action == ABSOLUTE_ACTIONS["LEFT"]
             ):
                 moving_to_wall = True
             elif (
-                state[pacman[0] + 1, pacman[1]] == POINT_TYPE["WALL"]
+                state[pacman[0] + 1, pacman[1]]
+                in [POINT_TYPE["WALL"], POINT_TYPE["GHOSTS_WALL"]]
                 and action == ABSOLUTE_ACTIONS["RIGHT"]
             ):
                 moving_to_wall = True
             elif (
-                state[pacman[0], pacman[1] + 1] == POINT_TYPE["WALL"]
+                state[pacman[0], pacman[1] + 1]
+                in [POINT_TYPE["WALL"], POINT_TYPE["GHOSTS_WALL"]]
                 and action == ABSOLUTE_ACTIONS["DOWN"]
             ):
                 moving_to_wall = True
             elif (
-                state[pacman[0], pacman[1] - 1] == POINT_TYPE["WALL"]
+                state[pacman[0], pacman[1] - 1]
+                in [POINT_TYPE["WALL"], POINT_TYPE["GHOSTS_WALL"]]
                 and action == ABSOLUTE_ACTIONS["UP"]
             ):
                 moving_to_wall = True
@@ -948,6 +937,9 @@ class Game:
             if hasattr(self, "coin_pos"):
                 for coin in self.coin_pos:
                     canvas[coin[0], coin[1]] = POINT_TYPE["COIN"]
+            if hasattr(self, "ghosts"):
+                for ghost in self.ghosts:
+                    canvas[ghost.head[0], ghost.head[1]] = POINT_TYPE["GHOST"]
 
         return canvas
 
@@ -1058,63 +1050,15 @@ class Game:
                         self.window,
                         VAR.head_color,
                         (
-                            row_idx * VAR.block_size + int(VAR.block_size / 2),
-                            element_idx * VAR.block_size + int(VAR.block_size / 2),
+                            row_idx * VAR.block_size + int(0.5 * VAR.block_size),
+                            element_idx * VAR.block_size + int(0.5 * VAR.block_size),
                         ),
-                        int(VAR.block_size / 2),
+                        int(0.5 * VAR.block_size),
                         0,
                     )
 
                     if self.mouth_closed:
-                        mouth_center = (
-                            row_idx * VAR.block_size + int(VAR.block_size / 2),
-                            element_idx * VAR.block_size + int(VAR.block_size / 2),
-                        )
-
-                        if self.pacman.previous_action == ABSOLUTE_ACTIONS["RIGHT"]:
-                            first_point = (
-                                row_idx * VAR.block_size + VAR.block_size,
-                                element_idx * VAR.block_size,
-                            )
-                            second_point = (
-                                row_idx * VAR.block_size + VAR.block_size,
-                                element_idx * VAR.block_size + VAR.block_size,
-                            )
-                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS["LEFT"]:
-                            first_point = (
-                                row_idx * VAR.block_size,
-                                element_idx * VAR.block_size,
-                            )
-                            second_point = (
-                                row_idx * VAR.block_size,
-                                element_idx * VAR.block_size + VAR.block_size,
-                            )
-                        elif self.pacman.previous_action == ABSOLUTE_ACTIONS["UP"]:
-                            first_point = (
-                                row_idx * VAR.block_size,
-                                element_idx * VAR.block_size,
-                            )
-                            second_point = (
-                                row_idx * VAR.block_size + VAR.block_size,
-                                element_idx * VAR.block_size,
-                            )
-                        else:
-                            first_point = (
-                                row_idx * VAR.block_size,
-                                element_idx * VAR.block_size + VAR.block_size,
-                            )
-                            second_point = (
-                                row_idx * VAR.block_size + VAR.block_size,
-                                element_idx * VAR.block_size + VAR.block_size,
-                            )
-
-                        pygame.draw.polygon(
-                            self.window,
-                            VAR.bg_color,
-                            [mouth_center, first_point, second_point],
-                            0,
-                        )
-
+                        self.draw_mouth(row_idx, element_idx)
                         self.mouth_closed = False
                     else:
                         self.mouth_closed = True
@@ -1123,10 +1067,10 @@ class Game:
                         self.window,
                         VAR.food_color,
                         pygame.Rect(
-                            row_idx * VAR.block_size + (VAR.block_size / 4),
-                            element_idx * VAR.block_size + (VAR.block_size / 4),
-                            VAR.block_size / 2,
-                            VAR.block_size / 2,
+                            row_idx * VAR.block_size + (0.25 * VAR.block_size),
+                            element_idx * VAR.block_size + (0.25 * VAR.block_size),
+                            0.5 * VAR.block_size,
+                            0.5 * VAR.block_size,
                         ),
                     )
                 elif element == POINT_TYPE["COIN"]:
@@ -1134,14 +1078,88 @@ class Game:
                         self.window,
                         VAR.coin_color,
                         (
-                            row_idx * VAR.block_size + int(VAR.block_size / 2),
-                            element_idx * VAR.block_size + int(VAR.block_size / 2),
+                            row_idx * VAR.block_size + int(0.5 * VAR.block_size),
+                            element_idx * VAR.block_size + int(0.5 * VAR.block_size),
                         ),
-                        int(VAR.block_size / 4),
+                        int(0.25 * VAR.block_size),
+                        0,
+                    )
+                elif element in [POINT_TYPE["GHOSTS_WALL"], POINT_TYPE["GHOSTS_AREA"]]:
+                    pygame.draw.rect(
+                        self.window,
+                        VAR.ghosts_area,
+                        pygame.Rect(
+                            row_idx * VAR.block_size,
+                            element_idx * VAR.block_size,
+                            VAR.block_size,
+                            VAR.block_size,
+                        ),
+                    )
+                elif element == POINT_TYPE["GHOST"]:
+                    pygame.draw.circle(
+                        self.window,
+                        (0, 51, 102),
+                        (
+                            row_idx * VAR.block_size + int(0.5 * VAR.block_size),
+                            element_idx * VAR.block_size + int(0.5 * VAR.block_size),
+                        ),
+                        int(0.5 * VAR.block_size),
+                        0,
+                    )
+
+                    pygame.draw.circle(
+                        self.window,
+                        VAR.bg_color,
+                        (
+                            row_idx * VAR.block_size + int(0.5 * VAR.block_size),
+                            element_idx * VAR.block_size + int(0.5 * VAR.block_size),
+                        ),
+                        int(0.25 * VAR.block_size),
                         0,
                     )
 
         pygame.display.set_caption("pacman-on-pygame  |  Score: " + str(self.score))
+
+    def draw_mouth(self, row_idx, element_idx):
+        mouth_center = (
+            row_idx * VAR.block_size + int(0.5 * VAR.block_size),
+            element_idx * VAR.block_size + int(0.5 * VAR.block_size),
+        )
+
+        if self.pacman.previous_action == ABSOLUTE_ACTIONS["RIGHT"]:
+            first_point = (
+                row_idx * VAR.block_size + VAR.block_size,
+                element_idx * VAR.block_size,
+            )
+            second_point = (
+                row_idx * VAR.block_size + VAR.block_size,
+                element_idx * VAR.block_size + VAR.block_size,
+            )
+        elif self.pacman.previous_action == ABSOLUTE_ACTIONS["LEFT"]:
+            first_point = (row_idx * VAR.block_size, element_idx * VAR.block_size)
+            second_point = (
+                row_idx * VAR.block_size,
+                element_idx * VAR.block_size + VAR.block_size,
+            )
+        elif self.pacman.previous_action == ABSOLUTE_ACTIONS["UP"]:
+            first_point = (row_idx * VAR.block_size, element_idx * VAR.block_size)
+            second_point = (
+                row_idx * VAR.block_size + VAR.block_size,
+                element_idx * VAR.block_size,
+            )
+        else:
+            first_point = (
+                row_idx * VAR.block_size,
+                element_idx * VAR.block_size + VAR.block_size,
+            )
+            second_point = (
+                row_idx * VAR.block_size + VAR.block_size,
+                element_idx * VAR.block_size + VAR.block_size,
+            )
+
+        pygame.draw.polygon(
+            self.window, VAR.bg_color, [mouth_center, first_point, second_point], 0
+        )
 
     def step(self, action):
         """Play the action and returns state, reward and if over."""
