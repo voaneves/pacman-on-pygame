@@ -12,7 +12,7 @@ from os import environ, path  # To center the game window the best possible
 import numpy as np
 from heapq import *
 
-__author__ = "Victor Neves"
+__author__ = "Christian Careaga"
 __license__ = "MIT"
 __maintainer__ = "Victor Neves"
 __email__ = "victorneves478@gmail.com"

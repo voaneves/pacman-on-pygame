@@ -270,12 +270,11 @@ class Ghost:
         ate_coin: boolean
             Flag which represents whether the pacman scored or not a coin.
         """
-        next_block = self.find_path(map, pacman)  # find path using A*
-        self.head = next_block
+        next_block = self.find_path(map, pacman)  # find path to pacman
+        self.head = list(next_block)
 
     def find_path(self, map, pacman):
-        """
-        """
+        """Find best path to pacman, using A* algorithm."""
         path = astar(map, (self.head[0], self.head[1]), (pacman[0], pacman[1]))
 
         try:
@@ -388,7 +387,7 @@ class Game:
         self.initiate_ghosts(n_ghosts=1)
         self.current_state = self.state()
 
-        self.food_generator = FoodGenerator(self.current_state)
+        self.food_generator = FoodGenerator(self.map)
         self.food_pos = self.food_generator.food_pos
         self.coin_pos = self.food_generator.coin_pos
 
@@ -756,7 +755,7 @@ class Game:
             key_input = self.handle_input()  # Receive inputs with tick.
 
             if key_input == "Q":
-                break
+                self.game_over = True
             if key_input is not None:
                 last_key = key_input
 
@@ -766,7 +765,11 @@ class Game:
                 for ghost in self.ghosts:
                     ghost.move(self.map, self.pacman.head)
 
+                    if self.pacman.head == ghost.head:
+                        self.game_over = True
+
                 self.draw()
+
             if elapsed_pacman >= move_wait_pacman:  # Move and redraw
                 elapsed_pacman = 0
                 self.play(last_key)
@@ -1096,9 +1099,21 @@ class Game:
                         ),
                     )
                 elif element == POINT_TYPE["GHOST"]:
+                    if [row_idx, element_idx] in (self.ghosts_area + self.ghosts_walls):
+                        pygame.draw.rect(
+                            self.window,
+                            VAR.ghosts_area,
+                            pygame.Rect(
+                                row_idx * VAR.block_size,
+                                element_idx * VAR.block_size,
+                                VAR.block_size,
+                                VAR.block_size,
+                            ),
+                        )
+
                     pygame.draw.circle(
                         self.window,
-                        (0, 51, 102),
+                        (0, 51, 102, 50),
                         (
                             row_idx * VAR.block_size + int(0.5 * VAR.block_size),
                             element_idx * VAR.block_size + int(0.5 * VAR.block_size),
