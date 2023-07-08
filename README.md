@@ -10,7 +10,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/voaneves/pacman-on-pygame">
-    <img src="img/pacman-on-pygame-logo.png" alt="Logo" width="80" height="80">
+    <img src="resources/image/pacman-on-pygame-logo.png" alt="Logo" width="80" height="80">
   </a>
   <h3 align="center">pacman-on-pygame</h3>
   <p align="center">
