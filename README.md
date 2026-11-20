@@ -2,7 +2,11 @@
 
 <div align="center">
 
-<img alt="Pac-Man on Pygame logo: an orange Pac-Man about to eat a purple pellet" src="https://raw.githubusercontent.com/voaneves/pacman-on-pygame/master/resources/images/pacman-on-pygame-logo.png" width="112" height="112" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/voaneves/pacman-on-pygame/master/assets/logo/logo-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/voaneves/pacman-on-pygame/master/assets/logo/logo-light.svg" />
+  <img alt="Pac-Man on Pygame logo: a maze, with a red dot for the power pellet" src="https://raw.githubusercontent.com/voaneves/pacman-on-pygame/master/assets/logo/logo-light.svg" width="112" height="112" />
+</picture>
 
 <h1>Pac-Man on Pygame</h1>
 

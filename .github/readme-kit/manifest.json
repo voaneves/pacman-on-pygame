@@ -7,6 +7,7 @@
   "tagline": "A Pac-Man recreation in Python with Pygame: eat every pellet and avoid the ghosts.",
   "description": "Recreation of the classic Pac-Man game in Python with Pygame, featuring ghosts, pellets and power pellets.",
   "logo": {
+    "glyph": "maze",
     "existing": "resources/images/pacman-on-pygame-logo.png",
     "width": 112,
     "height": 112
