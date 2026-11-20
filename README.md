@@ -61,6 +61,6 @@ This project is licensed under the MIT License. See the LICENSE file for more de
 [issues-shield]: https://img.shields.io/github/issues/voaneves/pacman-on-pygame.svg?style=for-the-badge
 [issues-url]: https://github.com/voaneves/pacman-on-pygame/issues
 [license-shield]: https://img.shields.io/github/license/voaneves/pacman-on-pygame.svg?style=for-the-badge
-[license-url]: https://github.com/voaneves/pacman-on-pygame/blob/master/LICENSE.txt
+[license-url]: https://github.com/voaneves/pacman-on-pygame/blob/master/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/voaneves
