@@ -1,0 +1,56 @@
+{
+  "repo": "pacman-on-pygame",
+  "branch": "master",
+  "lang": "en",
+  "license": "MIT",
+  "name": "Pac-Man on Pygame",
+  "tagline": "A Pac-Man recreation in Python with Pygame: eat every pellet and avoid the ghosts.",
+  "description": "Recreation of the classic Pac-Man game in Python with Pygame, featuring ghosts, pellets and power pellets.",
+  "logo": {
+    "existing": "resources/images/pacman-on-pygame-logo.png",
+    "width": 112,
+    "height": 112
+  },
+  "buttons": [
+    {
+      "id": "landing",
+      "text": "View landing page",
+      "kind": "primary",
+      "font": "sans",
+      "href": "https://voaneves.github.io/pacman-on-pygame/",
+      "landing": false
+    },
+    {
+      "id": "play",
+      "text": "Get the game",
+      "kind": "secondary",
+      "font": "sans",
+      "href": "https://github.com/voaneves/pacman-on-pygame/archive/refs/heads/master.zip",
+      "landing_kind": "primary"
+    },
+    {
+      "id": "hire",
+      "text": "Let's talk",
+      "kind": "primary",
+      "font": "sans",
+      "href": "https://voaneves.com/en/#contact",
+      "landing": false
+    },
+    {
+      "id": "site",
+      "text": "voaneves.com",
+      "kind": "secondary",
+      "font": "sans",
+      "href": "https://voaneves.com/en/",
+      "landing": false
+    }
+  ],
+  "features": [
+    "Arrow keys move Pac-Man through the maze.",
+    "Eat all pellets while avoiding the ghosts.",
+    "Power pellets let Pac-Man eat the ghosts for a time."
+  ],
+  "landing": true,
+  "live_url": "https://voaneves.github.io/pacman-on-pygame/",
+  "hire_href": "https://voaneves.com/en/#contact"
+}
